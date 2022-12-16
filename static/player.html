@@ -1,6 +1,57 @@
 <head>
     <title>Precariousness</title>
+
+    <script type="text/javascript">
+
+        let d = document
+
+        let playerId = null
+        let websocket = null
+
+        d.addEventListener("DOMContentLoaded", () => {
+            d.querySelector("#send-button").addEventListener("click", () => {
+                if (websocket !== null) {
+                    const text = d.querySelector("#text-input").value
+                    websocket.send(text)
+                }
+            })
+        })
+
+        fetch("/new_player", {method: "POST"})
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error("Failed to register player")
+                }
+                return response.json()
+            })
+            .then((response) => {
+                playerId = response.id
+                let location = window.location
+                let ws_url = "ws://" + location.hostname
+                if (location.port !== "") {
+                    ws_url += ":" + location.port
+                }
+                ws_url += "/player_socket/" + playerId
+                console.log("Player ID is", playerId, ". Opening websocket")
+                websocket = new WebSocket(ws_url)
+
+                websocket.onopen = function(_) {
+                    console.log("The socket opened")
+                }
+
+                websocket.onmessage = function(event) {
+                    console.log("Received message: " + event.data)
+                }
+            })
+
+
+
+    </script>
 </head>
 <body>
 <p>Player</p>
+<div>
+    <label for="text-input">Message</label><input id="text-input" type="text">
+    <button id="send-button">Send</button>
+</div>
 </body>

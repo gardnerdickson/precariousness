@@ -9,7 +9,6 @@ from starlette.responses import FileResponse
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-
 player_sockets = {}
 
 
@@ -19,9 +18,7 @@ class InvalidPlayerId(Exception):
 
 
 @app.exception_handler(InvalidPlayerId)
-async def invalid_player_id_handler(
-    initiator: Union[Request, WebSocket], exc: InvalidPlayerId
-):
+async def invalid_player_id_handler(initiator: Union[Request, WebSocket], exc: InvalidPlayerId):
     if isinstance(initiator, WebSocket):
         await initiator.accept()
         await initiator.send_text(
@@ -62,10 +59,11 @@ async def player_socket(websocket: WebSocket, player_id: str):
     player_sockets[player_id] = websocket
     try:
         while True:
-            data = await websocket.receive_text()
+            message = await websocket.receive_text()
+            print(f"Received message from {player_id}: {message}")
             for other_player_id, socket in player_sockets.items():
                 if player_id != other_player_id:
-                    await socket.send_text("player sent: " + data)
+                    await socket.send_text("player sent: " + message)
     except WebSocketDisconnect:
         del player_sockets[player_id]
 
