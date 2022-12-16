@@ -1,5 +1,5 @@
 import uuid
-from typing import Union
+from typing import Union, Dict, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
@@ -9,7 +9,9 @@ from starlette.responses import FileResponse
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-player_sockets = {}
+player_sockets: Dict[str, Optional[WebSocket]] = {}
+host_socket: Optional[WebSocket] = None
+gameboard_socket: Optional[WebSocket] = None
 
 
 class InvalidPlayerId(Exception):
@@ -52,7 +54,7 @@ async def register_new_player():
 
 
 @app.websocket("/player_socket/{player_id}")
-async def player_socket(websocket: WebSocket, player_id: str):
+async def init_player_socket(websocket: WebSocket, player_id: str):
     if player_id not in player_sockets:
         raise InvalidPlayerId(player_id)
     await websocket.accept()
@@ -64,21 +66,33 @@ async def player_socket(websocket: WebSocket, player_id: str):
             for other_player_id, socket in player_sockets.items():
                 if player_id != other_player_id:
                     await socket.send_text("player sent: " + message)
+            if host_socket:
+                print("Sending message to host")
+                await host_socket.send_text("player sent: " + message)
+            if gameboard_socket:
+                print("Sending message to gameboard")
+                await gameboard_socket.send_text("player sent: " + message)
     except WebSocketDisconnect:
         del player_sockets[player_id]
 
 
 @app.websocket("/host_socket")
-async def host_socket(websocket: WebSocket):
+async def init_host_socket(websocket: WebSocket):
     await websocket.accept()
+    global host_socket
+    host_socket = websocket
     while True:
         data = await websocket.receive_text()
-        await websocket.send_text("host sent: " + data)
+        for player_id, socket in player_sockets.items():
+            await socket.send_text(f"message from player: {data}")
 
 
 @app.websocket("/gameboard_socket")
-async def gameboard_socket(websocket: WebSocket):
+async def init_gameboard_socket(websocket: WebSocket):
     await websocket.accept()
+    global gameboard_socket
+    gameboard_socket = websocket
     while True:
         data = await websocket.receive_text()
-        await websocket.send_text("gameboard sent: " + data)
+        for player_id, socket in player_sockets.items():
+            await socket.send_text(f"message from player: {data}")

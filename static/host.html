@@ -1,6 +1,48 @@
 <head>
     <title>Precariousness</title>
+
+    <script type="text/javascript">
+
+        let d = document
+
+        let websocket = null
+
+        d.addEventListener("DOMContentLoaded", () => {
+            d.querySelector("#send-button").addEventListener("click", () => {
+                if (websocket !== null) {
+                    const text = d.querySelector("#text-input").value
+                    websocket.send(text)
+                }
+            })
+        })
+
+        function initSocket() {
+            let location = window.location
+            let ws_url = "ws://" + location.hostname
+            if (location.port !== "") {
+                ws_url += ":" + location.port
+            }
+            ws_url += "/host_socket"
+            console.log("Opening host socket")
+            websocket = new WebSocket(ws_url)
+
+            websocket.onopen = function(_) {
+                console.log("Host socket opened.")
+            }
+
+            websocket.onmessage = function(event) {
+                console.log("Received message: " + event.data)
+            }
+        }
+
+        initSocket()
+
+    </script>
 </head>
 <body>
 <p>Host</p>
+<div>
+    <label for="text-input">Message</label><input id="text-input" type="text">
+    <button id="send-button">Send</button>
+</div>
 </body>
