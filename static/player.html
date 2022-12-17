@@ -9,10 +9,27 @@
         let websocket = null
 
         d.addEventListener("DOMContentLoaded", () => {
-            d.querySelector("#send-button").addEventListener("click", () => {
+            d.querySelector("#init-button").addEventListener("click", () => {
                 if (websocket !== null) {
-                    const text = d.querySelector("#text-input").value
-                    websocket.send(text)
+                    const playerName = d.querySelector("#name-input").value
+                    const message = JSON.stringify({
+                        "operation": "PLAYER_INIT",
+                        "payload": {
+                            "playerName": playerName
+                        }
+                    })
+                    websocket.send(message)
+                }
+            })
+        })
+
+        d.addEventListener("DOMContentLoaded", () => {
+            d.querySelector("#buzz-button").addEventListener("click", () => {
+                if (websocket != null) {
+                    const message = JSON.stringify({
+                        "operation": "PLAYER_BUZZ",
+                    })
+                    websocket.send(message)
                 }
             })
         })
@@ -25,7 +42,7 @@
                 return response.json()
             })
             .then((response) => {
-                playerId = response.id
+                playerId = response.playerId
                 let location = window.location
                 let ws_url = "ws://" + location.hostname
                 if (location.port !== "") {
@@ -35,15 +52,14 @@
                 console.log("Player ID is", playerId, ". Opening websocket")
                 websocket = new WebSocket(ws_url)
 
-                websocket.onopen = function(_) {
+                websocket.onopen = function (_) {
                     console.log("The socket opened")
                 }
 
-                websocket.onmessage = function(event) {
+                websocket.onmessage = function (event) {
                     console.log("Received message: " + event.data)
                 }
             })
-
 
 
     </script>
@@ -51,7 +67,10 @@
 <body>
 <p>Player</p>
 <div>
-    <label for="text-input">Message</label><input id="text-input" type="text">
-    <button id="send-button">Send</button>
+    <label for="name-input">Player name:</label><input id="name-input" type="text">
+    <button id="init-button">Init</button>
+</div>
+<div>
+    <button id="buzz-button">Buzz</button>
 </div>
 </body>
