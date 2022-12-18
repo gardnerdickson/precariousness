@@ -1,8 +1,13 @@
 <head>
     <title>Precariousness</title>
 
+    <script type="text/javascript" src="static/common.js"></script>
     <script type="text/javascript">
 
+        const playerTemplate = "<div>${PLAYER_NAME} | ${PLAYER_SCORE}</div>"
+        const waitingForPlayerTemplate = "<p>Waiting for ${PLAYER_NAME} to choose a tile</p>"
+
+        const d = document
         let websocket = null
 
         function initSocket() {
@@ -21,13 +26,60 @@
 
             websocket.onmessage = function(event) {
                 console.log("Received message: " + event.data)
+                const message = JSON.parse(event.data)
+                let operation = message.operation
+                switch (operation) {
+                    case "PLAYER_JOINED":
+                        handlePlayerJoined(message.payload)
+                        break;
+                    case "START_GAME":
+                        handleStartGame(message.payload)
+                        break;
+                    case "WAITING_FOR_PLAYER_CHOICE":
+                        handleWaitingForPlayer(message.payload)
+                        break
+                    default:
+                        console.warn("Unrecognized operation:", message)
+                }
             }
         }
+
+
+        function handlePlayerJoined(payload) {
+            const playerList = d.querySelector("#player-list")
+            const playerInfo = playerTemplate
+                .replace("${PLAYER_NAME}", payload.playerName)
+                .replace("${PLAYER_SCORE}", payload.playerScore)
+
+            playerList.innerHTML += playerInfo
+        }
+
+
+        function handleStartGame(payload) {
+            console.log("START GAME!!!", payload)
+        }
+
+
+        function handleWaitingForPlayer(payload) {
+            console.log("waiting for player:", payload)
+            hideAllGameComponents()
+            const el = d.querySelector("#waiting-for-player")
+            el.innerHTML = waitingForPlayerTemplate.replace("${PLAYER_NAME}", payload.playerName)
+            el.style.display = ""
+        }
+
 
         initSocket()
 
     </script>
 
 <body>
-<p>Gameboard</p>
+<h2>Gameboard</h2>
+<div>
+    <h4>Players</h4>
+    <div id="player-list">
+
+    </div>
+</div>
+<div id="waiting-for-player" class="hideable-game-component" style="display: none"></div>
 </body>

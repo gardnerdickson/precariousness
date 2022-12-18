@@ -3,9 +3,10 @@ from typing import Any, Dict
 
 from pydantic import BaseModel, Field
 
-"""
-Socket communication models
-"""
+
+class PrecariousnessBaseModel(BaseModel):
+    class Config:
+        allow_population_by_field_name = True
 
 
 class SocketMessage(BaseModel):
@@ -13,21 +14,48 @@ class SocketMessage(BaseModel):
     payload: Dict[str, Any] = {}
 
 
-class PlayerInitMessage(BaseModel):
+"""
+Inbound socket communication models
+"""
+
+
+class PlayerInitMessage(PrecariousnessBaseModel):
     player_name: str = Field(alias="playerName")
 
 
-class PlayerChooseAnswerMessage(BaseModel):
+class PlayerChooseAnswerMessage(PrecariousnessBaseModel):
     category: str
     value: int
 
 
-class PlayerBuzzMessage(BaseModel):
+class PlayerBuzzMessage(PrecariousnessBaseModel):
     pass
 
 
-class ErrorMessage(BaseModel):
+class StartGameMessage(PrecariousnessBaseModel):
+    pass
+
+
+class ErrorMessage(PrecariousnessBaseModel):
     error: str
+
+
+"""
+Outbound socket communication models
+"""
+
+
+class PlayerJoinedMessage(PrecariousnessBaseModel):
+    player_name: str = Field(alias="playerName")
+    player_score: int = Field(alias="playerScore")
+
+
+class WaitingForPlayerMessage(PrecariousnessBaseModel):
+    player_name: str = Field(alias="playerName")
+
+
+class PlayerTurnStartMessage(PrecariousnessBaseModel):
+    pass
 
 
 """

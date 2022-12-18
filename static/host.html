@@ -1,17 +1,22 @@
 <head>
     <title>Precariousness</title>
 
+    <script type="text/javascript" src="static/common.js"></script>
     <script type="text/javascript">
 
-        let d = document
+        const playerTemplate = "<div>${PLAYER_NAME} | ${PLAYER_SCORE}</div>"
+        const waitingForPlayerTemplate = "<p>Waiting for ${PLAYER_NAME} to choose a tile</p>"
 
+        const d = document
         let websocket = null
 
         d.addEventListener("DOMContentLoaded", () => {
-            d.querySelector("#send-button").addEventListener("click", () => {
+            d.querySelector("#start-game").addEventListener("click", () => {
                 if (websocket !== null) {
-                    const text = d.querySelector("#text-input").value
-                    websocket.send(text)
+                    const message = JSON.stringify({
+                        "operation": "START_GAME",
+                    })
+                    websocket.send(message)
                 }
             })
         })
@@ -26,14 +31,46 @@
             console.log("Opening host socket")
             websocket = new WebSocket(ws_url)
 
-            websocket.onopen = function(_) {
+            websocket.onopen = function (_) {
                 console.log("Host socket opened.")
             }
 
-            websocket.onmessage = function(event) {
+            websocket.onmessage = function (event) {
                 console.log("Received message: " + event.data)
+                const message = JSON.parse(event.data)
+                let operation = message.operation
+                switch (operation) {
+                    case "PLAYER_JOINED":
+                        handlePlayerJoined(message.payload)
+                        break;
+                    case "WAITING_FOR_PLAYER_CHOICE":
+                        handleWaitingForPlayer(message.payload)
+                        break;
+                    default:
+                        console.warn("Unrecognized operation:", message)
+                }
             }
         }
+
+
+        function handlePlayerJoined(payload) {
+            const playerList = d.querySelector("#player-list")
+            const playerInfo = playerTemplate
+                .replace("${PLAYER_NAME}", payload.playerName)
+                .replace("${PLAYER_SCORE}", payload.playerScore)
+
+            playerList.innerHTML += playerInfo
+        }
+
+
+        function handleWaitingForPlayer(payload) {
+            console.log("START GAME!!!", payload)
+            hideAllGameComponents()
+            const el = d.querySelector("#waiting-for-player")
+            el.style.display = ""
+            el.innerHTML = waitingForPlayerTemplate.replace("${PLAYER_NAME}", payload.playerName)
+        }
+
 
         initSocket()
 
@@ -42,7 +79,14 @@
 <body>
 <p>Host</p>
 <div>
-    <label for="text-input">Message</label><input id="text-input" type="text">
-    <button id="send-button">Send</button>
+    <h4>Players</h4>
+    <div id="player-list">
+
+    </div>
 </div>
+<div id="players-joining" class="hideable-game-component">
+    <label for="start-game"></label>
+    <button id="start-game">All Players In</button>
+</div>
+<div id="waiting-for-player" class="hideable-game-component" style="display: none"></div>
 </body>

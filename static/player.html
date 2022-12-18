@@ -1,7 +1,10 @@
 <head>
     <title>Precariousness</title>
 
+    <script type="text/javascript" src="static/common.js"></script>
     <script type="text/javascript">
+
+        const waitingForPlayerTemplate = "<p>Waiting for ${PLAYER_NAME} to choose a tile</p>"
 
         let d = document
 
@@ -21,10 +24,8 @@
                     websocket.send(message)
                 }
             })
-        })
 
-        d.addEventListener("DOMContentLoaded", () => {
-            d.querySelector("#buzz-button").addEventListener("click", () => {
+            d.querySelector("#buzzer").addEventListener("click", () => {
                 if (websocket != null) {
                     const message = JSON.stringify({
                         "operation": "PLAYER_BUZZ",
@@ -33,6 +34,7 @@
                 }
             })
         })
+
 
         fetch("/new_player", {method: "POST"})
             .then((response) => {
@@ -58,19 +60,47 @@
 
                 websocket.onmessage = function (event) {
                     console.log("Received message: " + event.data)
+                    const message = JSON.parse(event.data)
+                    let operation = message.operation
+                    switch (operation) {
+                        case "WAITING_FOR_PLAYER_CHOICE":
+                            handleWaitingForPlayer(message.payload)
+                            break;
+                        case "PLAYER_TURN_START":
+                            handlePlayerTurnStart(message.payload)
+                            break;
+                        default:
+                            console.warn("Unrecognized operation: ", message)
+                    }
                 }
             })
 
+
+        function handleWaitingForPlayer(payload) {
+            console.log("waiting for player", payload)
+            hideAllGameComponents()
+            const el = d.querySelector("#waiting-for-player")
+            el.innerHTML = waitingForPlayerTemplate.replace("${PLAYER_NAME}", payload.playerName)
+            el.style.display = ""
+        }
+
+        function handlePlayerTurnStart(payload) {
+            console.log("PLAYER_TURN_START!!!")
+            hideAllGameComponents()
+            d.querySelector("#choose-question").style.display = ""
+        }
 
     </script>
 </head>
 <body>
 <p>Player</p>
-<div>
-    <label for="name-input">Player name:</label><input id="name-input" type="text">
-    <button id="init-button">Init</button>
+<div id="enter-name" class="hideable-game-component">
+    <div>
+        <label for="name-input">Player name:</label><input id="name-input" type="text">
+        <button id="init-button">Init</button>
+    </div>
 </div>
-<div>
-    <button id="buzz-button">Buzz</button>
-</div>
+<div id="buzzer" class="hideable-game-component" style="background-color: red; position: absolute; width: 100%; height: 100%; display: none"></div>
+<div id="waiting-for-player" class="hideable-game-component" style="display: none"></div>
+<div id="choose-question" class="hideable-game-component" style="display: none">Choose a tile</div>
 </body>
