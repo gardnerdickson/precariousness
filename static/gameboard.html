@@ -10,6 +10,11 @@
         const d = document
         let websocket = null
 
+        const socketMessageRouter = new SocketMessageRouter()
+        socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
+        socketMessageRouter.addRoute("START_GAME", handleStartGame)
+        socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
+
         function initSocket() {
             let location = window.location
             let ws_url = "ws://" + location.hostname
@@ -24,24 +29,7 @@
                 console.log("Gameboard socket opened.")
             }
 
-            websocket.onmessage = function(event) {
-                console.log("Received message: " + event.data)
-                const message = JSON.parse(event.data)
-                let operation = message.operation
-                switch (operation) {
-                    case "PLAYER_JOINED":
-                        handlePlayerJoined(message.payload)
-                        break;
-                    case "START_GAME":
-                        handleStartGame(message.payload)
-                        break;
-                    case "WAITING_FOR_PLAYER_CHOICE":
-                        handleWaitingForPlayer(message.payload)
-                        break
-                    default:
-                        console.warn("Unrecognized operation:", message)
-                }
-            }
+            websocket.onmessage = socketMessageRouter.onmessage
         }
 
 

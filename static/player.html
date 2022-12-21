@@ -11,6 +11,10 @@
         let playerId = null
         let websocket = null
 
+        const socketMessageRouter = new SocketMessageRouter()
+        socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
+        socketMessageRouter.addRoute("PLAYER_TURN_START", handlePlayerTurnStart)
+
         d.addEventListener("DOMContentLoaded", () => {
             d.querySelector("#init-button").addEventListener("click", () => {
                 if (websocket !== null) {
@@ -43,37 +47,25 @@
                 }
                 return response.json()
             })
-            .then((response) => {
-                playerId = response.playerId
-                let location = window.location
-                let ws_url = "ws://" + location.hostname
-                if (location.port !== "") {
-                    ws_url += ":" + location.port
-                }
-                ws_url += "/player_socket/" + playerId
-                console.log("Player ID is", playerId, ". Opening websocket")
-                websocket = new WebSocket(ws_url)
+            .then((response) => initSocket(response.playerId))
 
-                websocket.onopen = function (_) {
-                    console.log("The socket opened")
-                }
 
-                websocket.onmessage = function (event) {
-                    console.log("Received message: " + event.data)
-                    const message = JSON.parse(event.data)
-                    let operation = message.operation
-                    switch (operation) {
-                        case "WAITING_FOR_PLAYER_CHOICE":
-                            handleWaitingForPlayer(message.payload)
-                            break;
-                        case "PLAYER_TURN_START":
-                            handlePlayerTurnStart(message.payload)
-                            break;
-                        default:
-                            console.warn("Unrecognized operation: ", message)
-                    }
-                }
-            })
+        function initSocket(playerId) {
+            let location = window.location
+            let ws_url = "ws://" + location.hostname
+            if (location.port !== "") {
+                ws_url += ":" + location.port
+            }
+            ws_url += "/player_socket/" + playerId
+            console.log("Player ID is", playerId, ". Opening websocket")
+            websocket = new WebSocket(ws_url)
+
+            websocket.onopen = function (_) {
+                console.log("The socket opened")
+            }
+
+            websocket.onmessage = socketMessageRouter.onmessage
+        }
 
 
         function handleWaitingForPlayer(payload) {

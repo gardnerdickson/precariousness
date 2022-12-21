@@ -10,6 +10,10 @@
         const d = document
         let websocket = null
 
+        const socketMessageRouter = new SocketMessageRouter()
+        socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
+        socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
+
         d.addEventListener("DOMContentLoaded", () => {
             d.querySelector("#start-game").addEventListener("click", () => {
                 if (websocket !== null) {
@@ -35,21 +39,7 @@
                 console.log("Host socket opened.")
             }
 
-            websocket.onmessage = function (event) {
-                console.log("Received message: " + event.data)
-                const message = JSON.parse(event.data)
-                let operation = message.operation
-                switch (operation) {
-                    case "PLAYER_JOINED":
-                        handlePlayerJoined(message.payload)
-                        break;
-                    case "WAITING_FOR_PLAYER_CHOICE":
-                        handleWaitingForPlayer(message.payload)
-                        break;
-                    default:
-                        console.warn("Unrecognized operation:", message)
-                }
-            }
+            websocket.onmessage = socketMessageRouter.onmessage
         }
 
 
