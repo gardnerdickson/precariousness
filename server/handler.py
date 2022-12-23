@@ -1,9 +1,14 @@
+import logging
+
 from typing import Type
 
 from starlette.websockets import WebSocket
 
 from server.exceptions import InvalidOperation
 from server.model import PrecariousnessBaseModel, SocketMessage
+
+
+logger = logging.getLogger(__name__)
 
 
 class SocketHandler:
@@ -35,6 +40,7 @@ class SocketHandler:
             message = SocketMessage.parse_obj(data)
             if message.operation not in self.operation_handlers:
                 raise InvalidOperation(message.operation)
+            logger.info(f"Routing operation: {message.operation}")
             func, model_type = self.operation_handlers[message.operation]
             payload = model_type.parse_obj(message.payload)
             return await func(payload, **kwargs)
@@ -47,6 +53,7 @@ class SocketHandler:
             if base in self.error_handlers:
                 await self.error_handlers[base](websocket, exc)
                 return
+        logger.warning(f"No handler registered for exception: {type(exc)}")
         raise exc
 
     @staticmethod
