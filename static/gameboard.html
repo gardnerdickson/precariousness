@@ -2,10 +2,10 @@
     <title>Precariousness</title>
 
     <script type="text/javascript" src="static/common.js"></script>
+    <script type="text/javascript" src="static/gameboard.js"></script>
     <script type="text/javascript">
 
         const playerTemplate = "<div>${PLAYER_NAME} | ${PLAYER_SCORE}</div>"
-        const waitingForPlayerTemplate = "<p>Waiting for ${PLAYER_NAME} to choose a tile</p>"
 
         const d = document
         let websocket = null
@@ -14,6 +14,13 @@
         socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
         socketMessageRouter.addRoute("START_GAME", handleStartGame)
         socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
+
+
+        d.addEventListener("DOMContentLoaded", () => {
+            hideAllGameComponents()
+            d.querySelector("#player-list-container").style.display = ""
+        })
+
 
         function initSocket() {
             let location = window.location
@@ -45,15 +52,14 @@
 
         function handleStartGame(payload) {
             console.log("START GAME!!!", payload)
+            hideAllGameComponents()
+            d.querySelector("#gameboard").style.display = ""
+            startGame()
         }
 
 
         function handleWaitingForPlayer(payload) {
             console.log("waiting for player:", payload)
-            hideAllGameComponents()
-            const el = d.querySelector("#waiting-for-player")
-            el.innerHTML = waitingForPlayerTemplate.replace("${PLAYER_NAME}", payload.playerName)
-            el.style.display = ""
         }
 
 
@@ -61,13 +67,18 @@
 
     </script>
 
+    <link rel="stylesheet" href="static/gameboard.css">
+</head>
+
 <body>
-<h2>Gameboard</h2>
-<div>
+<div id="player-list-container" class="hideable-game-component">
     <h4>Players</h4>
     <div id="player-list">
 
     </div>
 </div>
-<div id="waiting-for-player" class="hideable-game-component" style="display: none"></div>
+<div id="waiting-for-player" class="hideable-game-component"></div>
+<div id="gameboard" class="hideable-game-component">
+    <canvas id="gameboard-canvas"></canvas>
+</div>
 </body>
