@@ -22,11 +22,15 @@ class SocketMessageRouter {
     onmessage(event) {
         console.debug("Received message:", event)
         const message = JSON.parse(event.data)
-        let operation = message.operation
-        if (self.handlers.has(operation)) {
-            self.handlers.get(operation)(message.payload)
+        if ("error" in message) {
+            console.error(message.error)
         } else {
-            console.warn("Encountered unregistered route:", event)
+            let operation = message.operation
+            if (self.handlers.has(operation)) {
+                self.handlers.get(operation)(message.payload)
+            } else {
+                console.warn("Encountered unregistered route:", event)
+            }
         }
     }
 }
