@@ -1,10 +1,13 @@
+import json
 import logging
+import os
 import random
 import sys
 import uuid
 from json import JSONDecodeError
 from typing import Dict, Optional
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
@@ -22,13 +25,20 @@ from server.model import (
     PlayerTurnStartMessage,
     StartGameMessage,
     WaitingForPlayerMessage,
+    GameBoardState, LoadGameBoardMessage
 )
 
 
-configure_logging()
+load_dotenv()
 
+configure_logging()
 logger = logging.getLogger(__name__)
 
+if "GAME_FILE" not in os.environ:
+    raise KeyError("Environment variable 'GAME_FILE' required.")
+
+with open(os.environ["GAME_FILE"]) as fh:
+    game_board_data = GameBoardState.parse_obj(json.load(fh))
 
 app = FastAPI(title="Precariousness!")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -77,6 +87,11 @@ async def register_new_player():
     return {"playerId": new_player_id}
 
 
+@app.post("/get_gameboard")
+async def get_gameboard():
+    return game_board_data
+
+
 @app.websocket("/player_socket/{player_id}")
 async def init_player_socket(websocket: WebSocket, player_id: str):
     if player_id not in player_sockets:
@@ -107,8 +122,10 @@ async def init_gameboard_socket(websocket: WebSocket):
     await websocket.accept()
     global gameboard_socket
     gameboard_socket = websocket
-    while True:
-        await socket_handler.handle_operation(gameboard_socket)
+    # while True:
+        # await socket_handler.handle_operation(gameboard_socket)
+    load_game_board_message = LoadGameBoardMessage(game_board=game_board_data)
+    await socket_handler.send_message("LOAD_GAME_BOARD", load_game_board_message, gameboard_socket)
 
 
 @socket_handler.error(InvalidOperation)
@@ -156,8 +173,10 @@ async def handle_start_game(_: StartGameMessage):
     random.shuffle(player_sequence)
     current_player = player_sequence[current_player_idx]
 
+    load_game_board_message = LoadGameBoardMessage(game_board=game_board_data)
+    await socket_handler.send_message("LOAD_GAME_BOARD", load_game_board_message, gameboard_socket)
+
     waiting_for_player_message = WaitingForPlayerMessage(player_name=current_player.name)
-    await socket_handler.send_message("START_GAME", StartGameMessage(), gameboard_socket)
     await socket_handler.send_message("WAITING_FOR_PLAYER_CHOICE", waiting_for_player_message, gameboard_socket)
     await socket_handler.send_message("WAITING_FOR_PLAYER_CHOICE", waiting_for_player_message, host_socket)
     for player_id, socket in player_sockets.items():

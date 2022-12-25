@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from pydantic import BaseModel, Field
 
@@ -12,6 +12,29 @@ class PrecariousnessBaseModel(BaseModel):
 class SocketMessage(BaseModel):
     operation: str
     payload: Dict[str, Any] = {}
+
+
+"""
+Game state models
+"""
+
+
+class Question(PrecariousnessBaseModel):
+    answer: str
+    question: str
+
+
+class Category(PrecariousnessBaseModel):
+    name: str
+    questions: Dict[str, Question]
+
+
+class Round(PrecariousnessBaseModel):
+    categories: List[Category]
+
+
+class GameBoardState(PrecariousnessBaseModel):
+    rounds: List[Round]
 
 
 """
@@ -58,9 +81,8 @@ class PlayerTurnStartMessage(PrecariousnessBaseModel):
     pass
 
 
-"""
-Game state models
-"""
+class LoadGameBoardMessage(PrecariousnessBaseModel):
+    game_board: GameBoardState = Field(alias="gameBoard")
 
 
 @dataclass

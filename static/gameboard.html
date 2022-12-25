@@ -12,13 +12,29 @@
 
         const socketMessageRouter = new SocketMessageRouter()
         socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
-        socketMessageRouter.addRoute("START_GAME", handleStartGame)
+        // socketMessageRouter.addRoute("LOAD_GAME_BOARD", handleLoadGameBoard)
         socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
 
 
+        // d.addEventListener("DOMContentLoaded", () => {
+        //     hideAllGameComponents()
+        //     d.querySelector("#player-list-container").style.display = ""
+        // })
+
         d.addEventListener("DOMContentLoaded", () => {
+            console.log("starting game")
             hideAllGameComponents()
-            d.querySelector("#player-list-container").style.display = ""
+            d.querySelector("#gameboard").style.display = ""
+
+            fetch("/get_gameboard", {method: "POST"})
+                .then((response) => {
+                    if (response.ok) {
+                        return response.json()
+                    }
+                })
+                .then((gameboardData) => {
+                    startGame({'gameBoard': gameboardData})
+                })
         })
 
 
@@ -68,6 +84,9 @@
     </script>
 
     <link rel="stylesheet" href="static/gameboard.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lora&display=swap" rel="stylesheet">
 </head>
 
 <body>
