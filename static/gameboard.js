@@ -35,6 +35,7 @@ class Game {
         this.canvasElement.height = 9 * window.innerWidth / 16
         this.scaleFactor = this.canvasElement.width / REFERENCE_RESOLUTION_WIDTH
 
+        gameEntities.sort((a, b) => a.drawOrder - b.drawOrder)
         gameEntities.forEach(entity => entity.update(elapsedTime, this.canvasElement))
     }
 
@@ -70,6 +71,7 @@ class Entity {
         this.position = position
         this.dimensions = dimensions
         this.duration = duration
+        this.drawOrder = 1
     }
 
     update(elapsedTime) {
@@ -129,6 +131,12 @@ class Tile extends Entity {
 
     reveal() {
         this.drawMode = "ANSWER"
+        this.drawOrder = 5
+    }
+
+    used() {
+        this.drawMode = "USED"
+        this.drawOrder = 1
     }
 
     update(elapsedTime) {
@@ -149,6 +157,16 @@ class Tile extends Entity {
     }
 
     draw(ctx, canvasElement, scaleFactor) {
+        if (this.drawMode === "DOLLAR_AMOUNT") {
+            this.drawDollarLabel(ctx, canvasElement, scaleFactor)
+        } else if (this.drawMode === "ANSWER") {
+            this.drawAnswer(ctx, canvasElement, scaleFactor)
+        } else { // ths.drawMode === "USED"
+            this.drawUsed(ctx, canvasElement, scaleFactor)
+        }
+    }
+
+    drawDollarLabel(ctx, _, scaleFactor) {
         ctx.fillStyle = this.currentColor
         ctx.fillRect(
             this.position.x,
@@ -158,15 +176,7 @@ class Tile extends Entity {
         )
 
         ctx.scale(scaleFactor, scaleFactor)
-        if (this.drawMode === "DOLLAR_AMOUNT") {
-            this.drawDollarLabel(ctx, scaleFactor)
-        } else {
-            this.drawAnswer(ctx, scaleFactor)
-        }
-        ctx.setTransform(1, 0, 0, 1, 0, 0)
-    }
 
-    drawDollarLabel(ctx, scaleFactor) {
         const label = "$" + this.label
         ctx.textAlign = "center"
         ctx.textBaseline = "middle"
@@ -185,12 +195,29 @@ class Tile extends Entity {
             (this.position.x + (this.dimensions.width / 2)) / scaleFactor,
             (this.position.y + (this.dimensions.height / 2)) / scaleFactor
         )
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0)
     }
 
-    drawAnswer(ctx, scaleFactor) {
+    drawAnswer(ctx, canvasElement, scaleFactor) {
+        this.position.x = 0
+        this.position.y = 0
+        this.dimensions.width = canvasElement.width
+        this.dimensions.height = canvasElement.height
+
+        ctx.fillStyle = this.currentColor
+        ctx.fillRect(
+            this.position.x,
+            this.position.y,
+            this.dimensions.width,
+            this.dimensions.height
+        )
+
+        ctx.scale(scaleFactor, scaleFactor)
+
         ctx.textAlign = "center"
         ctx.textBaseline = "middle"
-        ctx.font = "bold 30px " + this.labelFont
+        ctx.font = "bold 120px " + this.labelFont
 
         const maxWidth = this.dimensions.width * 0.95
         const words = this.answer.split(" ")
@@ -240,6 +267,18 @@ class Tile extends Entity {
         drawLines(0)
         ctx.fillStyle = this.labelColor
         drawLines(2)
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0)
+    }
+
+    drawUsed(ctx, canvasElement, scaleFactor) {
+        ctx.fillStyle = this.currentColor
+        ctx.fillRect(
+            this.position.x,
+            this.position.y,
+            this.dimensions.width,
+            this.dimensions.height
+        )
     }
 }
 
