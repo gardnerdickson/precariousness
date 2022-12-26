@@ -7,7 +7,6 @@ const TILE_LABEL_COLOR = "#a8d7e0"
 const TILE_FONT = "Lora"
 const REFERENCE_RESOLUTION_WIDTH = 1920
 const REFERENCE_RESOLUTION_HEIGHT = 1080
-const REFERENCE_AREA = REFERENCE_RESOLUTION_WIDTH * REFERENCE_RESOLUTION_HEIGHT
 
 let DEBUG_FLAG = false
 
@@ -29,13 +28,13 @@ class Game {
     update(totalGameTime) {
         gameEntities = gameEntities.filter(entity => !entity.isDead())
 
-        let actualArea = this.canvasElement.width * this.canvasElement.height
-        this.scaleFactor = actualArea / REFERENCE_AREA
-
         const elapsedTime = totalGameTime - this.previousGameTime
         this.previousGameTime = totalGameTime
-        this.canvasElement.width = this.htmlElement.clientWidth
-        this.canvasElement.height = this.htmlElement.clientHeight
+
+        this.canvasElement.width = window.innerWidth
+        this.canvasElement.height = 9 * window.innerWidth / 16
+        this.scaleFactor = this.canvasElement.width / REFERENCE_RESOLUTION_WIDTH
+
         gameEntities.forEach(entity => entity.update(elapsedTime, this.canvasElement))
     }
 
@@ -94,6 +93,8 @@ class Tile extends Entity {
     constructor(position, dimensions, answer, question, label, labelFont, labelColor, idleColor, highlightColor, flickerColor) {
         super(position, dimensions)
 
+        this.drawMode = "DOLLAR_AMOUNT"
+
         this.answer = answer
         this.question = question
 
@@ -126,6 +127,10 @@ class Tile extends Entity {
         this.flickerStartColor = this.currentColor
     }
 
+    reveal() {
+        this.drawMode = "ANSWER"
+    }
+
     update(elapsedTime) {
         super.update(elapsedTime)
 
@@ -152,8 +157,17 @@ class Tile extends Entity {
             this.dimensions.height
         )
 
-        const label = "$" + this.label
         ctx.scale(scaleFactor, scaleFactor)
+        if (this.drawMode === "DOLLAR_AMOUNT") {
+            this.drawDollarLabel(ctx, scaleFactor)
+        } else {
+            this.drawAnswer(ctx, scaleFactor)
+        }
+        ctx.setTransform(1, 0, 0, 1, 0, 0)
+    }
+
+    drawDollarLabel(ctx, scaleFactor) {
+        const label = "$" + this.label
         ctx.textAlign = "center"
         ctx.textBaseline = "middle"
         ctx.font = "bold 72px " + this.labelFont
@@ -171,8 +185,61 @@ class Tile extends Entity {
             (this.position.x + (this.dimensions.width / 2)) / scaleFactor,
             (this.position.y + (this.dimensions.height / 2)) / scaleFactor
         )
+    }
 
-        ctx.setTransform(1, 0, 0, 1, 0, 0)
+    drawAnswer(ctx, scaleFactor) {
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+        ctx.font = "bold 30px " + this.labelFont
+
+        const maxWidth = this.dimensions.width * 0.95
+        const words = this.answer.split(" ")
+
+        const lines = []
+        let nextWord = null
+        let line = ""
+        let newLineWidth = -1;
+        for (let i = 0; i < words.length; i++) {
+            nextWord = words[i]
+            newLineWidth = ctx.measureText(line + " " + nextWord).width
+            if (newLineWidth > maxWidth || i === words.length - 1) {
+                lines.push(line)
+                line = ""
+            }
+            line += " " + nextWord
+            if (i === words.length - 1) {
+                lines.push(line)
+            }
+        }
+
+        const fontMetrics = ctx.measureText("I")
+        const yIncrement = fontMetrics.actualBoundingBoxAscent + fontMetrics.actualBoundingBoxDescent
+
+        const drawLines = (offset) => {
+            if (lines.length > 1) {
+                let mid = (() => {
+                    if (lines.length % 2 === 0) {
+                        return lines.length / 2
+                    } else {
+                        return Math.ceil(lines.length / 2)
+                    }
+                })()
+                let yOffset = yIncrement * -mid
+                for (let line of lines) {
+                    ctx.fillText(
+                        line,
+                        (this.position.x + (this.dimensions.width / 2) + offset) / scaleFactor,
+                        (this.position.y + yOffset + (this.dimensions.height / 2) + offset) / scaleFactor
+                    )
+                    yOffset += yIncrement
+                }
+            }
+        }
+
+        ctx.fillStyle = "#000000"
+        drawLines(0)
+        ctx.fillStyle = this.labelColor
+        drawLines(2)
     }
 }
 
@@ -240,12 +307,7 @@ class GameBoard extends Entity {
 
     update(elapsedTime, canvasElement) {
         this.dimensions.width = canvasElement.width
-        this.dimensions.height = canvasElement.width * 0.5625
-
-        if (this.dimensions.height > canvasElement.height) {
-            this.dimensions.height = canvasElement.height
-            this.dimensions.width = canvasElement.height * 1.777
-        }
+        this.dimensions.height = canvasElement.height
 
         let xOffset = 0
         for (let col in this.tiles) {
