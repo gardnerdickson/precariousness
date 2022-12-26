@@ -1,5 +1,5 @@
 <head>
-    <title>Precariousness</title>
+    <title>Precariousness!</title>
 
     <script type="text/javascript" src="static/common.js"></script>
     <script type="text/javascript">
@@ -26,6 +26,7 @@
                         }
                     })
                     websocket.send(message)
+                    hideAllGameComponents()
                 }
             })
 
@@ -99,5 +100,7 @@
 </div>
 <div id="buzzer" class="hideable-game-component" style="background-color: red; position: absolute; width: 100%; height: 100%; display: none"></div>
 <div id="waiting-for-player" class="hideable-game-component" style="display: none"></div>
-<div id="choose-question" class="hideable-game-component" style="display: none">Choose a tile</div>
+<div id="choose-question" class="hideable-game-component" style="display: none">
+    Choose a tile
+</div>
 </body>

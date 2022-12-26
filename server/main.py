@@ -25,7 +25,8 @@ from server.model import (
     PlayerTurnStartMessage,
     StartGameMessage,
     WaitingForPlayerMessage,
-    GameBoardState, LoadGameBoardMessage
+    GameBoardState,
+    LoadGameBoardMessage,
 )
 
 
@@ -122,10 +123,10 @@ async def init_gameboard_socket(websocket: WebSocket):
     await websocket.accept()
     global gameboard_socket
     gameboard_socket = websocket
-    # while True:
-        # await socket_handler.handle_operation(gameboard_socket)
-    load_game_board_message = LoadGameBoardMessage(game_board=game_board_data)
-    await socket_handler.send_message("LOAD_GAME_BOARD", load_game_board_message, gameboard_socket)
+    while True:
+        await socket_handler.handle_operation(gameboard_socket)
+    # load_game_board_message = LoadGameBoardMessage(game_board=game_board_data)
+    # await socket_handler.send_message("LOAD_GAME_BOARD", load_game_board_message, gameboard_socket)
 
 
 @socket_handler.error(InvalidOperation)

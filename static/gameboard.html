@@ -1,5 +1,5 @@
 <head>
-    <title>Precariousness</title>
+    <title>Precariousness!</title>
 
     <script type="text/javascript" src="static/common.js"></script>
     <script type="text/javascript" src="static/gameboard.js"></script>
@@ -12,31 +12,16 @@
 
         const socketMessageRouter = new SocketMessageRouter()
         socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
-        // socketMessageRouter.addRoute("LOAD_GAME_BOARD", handleLoadGameBoard)
+        socketMessageRouter.addRoute("LOAD_GAME_BOARD", handleStartGame)
         socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
 
+        let gameBoard = null
 
-        // d.addEventListener("DOMContentLoaded", () => {
-        //     hideAllGameComponents()
-        //     d.querySelector("#player-list-container").style.display = ""
-        // })
 
         d.addEventListener("DOMContentLoaded", () => {
-            console.log("starting game")
             hideAllGameComponents()
-            d.querySelector("#gameboard").style.display = ""
-
-            fetch("/get_gameboard", {method: "POST"})
-                .then((response) => {
-                    if (response.ok) {
-                        return response.json()
-                    }
-                })
-                .then((gameboardData) => {
-                    startGame({'gameBoard': gameboardData})
-                })
+            d.querySelector("#player-list-container").style.display = ""
         })
-
 
         function initSocket() {
             let location = window.location
@@ -69,8 +54,16 @@
         function handleStartGame(payload) {
             console.log("START GAME!!!", payload)
             hideAllGameComponents()
-            d.querySelector("#gameboard").style.display = ""
-            startGame()
+            const gameBoardDiv = d.querySelector("#gameboard")
+            gameBoardDiv.style.display = ""
+            gameBoardDiv.style.width = "100%"
+            gameBoardDiv.style.height = "100%"
+            gameBoardDiv.style.margin = "0"
+            const gameBoardCanvas = d.querySelector("#gameboard-canvas")
+            gameBoardCanvas.width = gameBoardDiv.offsetWidth
+            gameBoardCanvas.height = gameBoardDiv.offsetHeight
+
+            gameBoard = NewGameBoard(payload.gameBoard, gameBoardCanvas)
         }
 
 
