@@ -26,7 +26,7 @@ from server.model import (
     StartGameMessage,
     WaitingForPlayerMessage,
     GameBoardState,
-    LoadGameBoardMessage,
+    LoadGameBoardMessage, Tile,
 )
 
 
@@ -39,7 +39,7 @@ if "GAME_FILE" not in os.environ:
     raise KeyError("Environment variable 'GAME_FILE' required.")
 
 with open(os.environ["GAME_FILE"]) as fh:
-    game_board_data = GameBoardState.parse_obj(json.load(fh))
+    game_board_state = GameBoardState.parse_obj(json.load(fh))
 
 app = FastAPI(title="Precariousness!")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -90,7 +90,17 @@ async def register_new_player():
 
 @app.post("/get_gameboard")
 async def get_gameboard():
-    return game_board_data
+    return game_board_state
+
+
+@app.post("/mark_answer_used")
+async def mark_answer_used(tile: Tile):
+    categories = game_board_state.rounds[tile.round].categories
+    category = next((c for c in categories if c == tile.category), None)
+    if not category:
+        raise KeyError(f"Category does not exist: {tile.category}")
+    category.questions[tile.amount].used = True
+    logger.info(f"Marked {tile.round} -> {tile.category} -> {tile.amount} as used")
 
 
 @app.websocket("/player_socket/{player_id}")
@@ -171,10 +181,10 @@ async def handle_player_init(inbound_message: PlayerInitMessage, player_id: str)
 async def handle_start_game(_: StartGameMessage):
     # Shuffle turn order
     player_sequence = list(players.values())
-    random.shuffle(player_sequence)
+    # random.shuffle(player_sequence)
     current_player = player_sequence[current_player_idx]
 
-    load_game_board_message = LoadGameBoardMessage(game_board=game_board_data)
+    load_game_board_message = LoadGameBoardMessage(game_board=game_board_state)
     await socket_handler.send_message("LOAD_GAME_BOARD", load_game_board_message, gameboard_socket)
 
     waiting_for_player_message = WaitingForPlayerMessage(player_name=current_player.name)

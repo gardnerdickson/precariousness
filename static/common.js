@@ -1,6 +1,6 @@
 
-function hideAllGameComponents() {
-    d.querySelectorAll(".hideable-game-component").forEach(function (el) {
+function hideScreens() {
+    d.querySelectorAll(".hideable").forEach(function (el) {
         el.style.display = "none"
     })
 }
@@ -34,3 +34,43 @@ class SocketMessageRouter {
         }
     }
 }
+
+
+const service = {
+    newPlayer: function() {
+        return fetch("/new_player", {method: "POST"})
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error("Failed to register player")
+                }
+                return response.json()
+            })
+    },
+    getGameBoard: function() {
+        return fetch("/get_gameboard", {method: "POST"})
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error("Failed to get game board")
+                }
+                return response.json()
+            })
+    },
+    markTileUsed: function(round, category, amount) {
+        const tile_request_body = {
+            "round": round,
+            "category": category,
+            "amount": amount
+        }
+        return fetch("/mark_tile_used", {
+            method: "POST",
+            data: JSON.stringify(tile_request_body)
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error("Failed to mark tile as used")
+                }
+                return response.json()
+            })
+    }
+}
+

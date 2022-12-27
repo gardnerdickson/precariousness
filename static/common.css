@@ -1,0 +1,12 @@
+
+.screen {
+    width: 100%;
+    height: 100%
+}
+
+.question-button {
+    height: 15%;
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #eb8934;
+}

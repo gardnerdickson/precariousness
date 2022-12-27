@@ -55,7 +55,7 @@
 
         function handleWaitingForPlayer(payload) {
             console.log("START GAME!!!", payload)
-            hideAllGameComponents()
+            hideScreens()
             const el = d.querySelector("#waiting-for-player")
             el.style.display = ""
             el.innerHTML = waitingForPlayerTemplate.replace("${PLAYER_NAME}", payload.playerName)
@@ -65,6 +65,8 @@
         initSocket()
 
     </script>
+
+    <link rel="stylesheet" href="static/common.css">
 </head>
 <body>
 <p>Host</p>
@@ -74,9 +76,9 @@
 
     </div>
 </div>
-<div id="players-joining" class="hideable-game-component">
+<div id="players-joining" class="screen hideable">
     <label for="start-game"></label>
     <button id="start-game">All Players In</button>
 </div>
-<div id="waiting-for-player" class="hideable-game-component" style="display: none"></div>
+<div id="waiting-for-player" class="screen hideable" style="display: none"></div>
 </body>

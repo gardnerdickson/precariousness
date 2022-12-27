@@ -19,7 +19,7 @@
 
 
         d.addEventListener("DOMContentLoaded", () => {
-            hideAllGameComponents()
+            hideScreens()
             d.querySelector("#player-list-container").style.display = ""
         })
 
@@ -53,7 +53,7 @@
 
         function handleStartGame(payload) {
             console.log("START GAME!!!", payload)
-            hideAllGameComponents()
+            hideScreens()
             const gameBoardDiv = d.querySelector("#gameboard")
             gameBoardDiv.style.display = ""
             gameBoardDiv.style.width = "100%"
@@ -63,7 +63,7 @@
             gameBoardCanvas.width = gameBoardDiv.offsetWidth
             gameBoardCanvas.height = gameBoardDiv.offsetHeight
 
-            gameBoard = NewGameBoard(payload.gameBoard, gameBoardCanvas)
+            gameBoard = NewGameBoard(payload.gameBoard, gameBoardCanvas, onGameBoardTileStateChange)
         }
 
 
@@ -72,10 +72,19 @@
         }
 
 
+        function onGameBoardTileStateChange(round, category, amount) {
+            service.markTileUsed(round, category, amount)
+                .then(() => {
+                    console.log("Mark tile used", round, category, amount)
+                })
+        }
+
+
         initSocket()
 
     </script>
 
+    <link rel="stylesheet" href="static/common.css">
     <link rel="stylesheet" href="static/gameboard.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -83,14 +92,14 @@
 </head>
 
 <body>
-<div id="player-list-container" class="hideable-game-component">
+<div id="player-list-container" class="screen hideable">
     <h4>Players</h4>
     <div id="player-list">
 
     </div>
 </div>
-<div id="waiting-for-player" class="hideable-game-component"></div>
-<div id="gameboard" class="hideable-game-component">
+<div id="waiting-for-player" class="screen hideable"></div>
+<div id="gameboard" class="screen hideable">
     <canvas id="gameboard-canvas"></canvas>
 </div>
 </body>

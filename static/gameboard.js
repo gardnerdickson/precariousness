@@ -1,4 +1,4 @@
-const NewGameBoard = function (gameBoardData, canvasElement) {
+const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) {
     let GAMEBOARD_STOP_GAME_LOOP = false
     let board = null
     const TILE_IDLE_COLOR = "#eb8934"
@@ -92,7 +92,20 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
 
 
     class Tile extends Entity {
-        constructor(position, dimensions, answer, question, label, labelFont, labelColor, idleColor, highlightColor, flickerColor) {
+        constructor(
+            position,
+            dimensions,
+            answer,
+            question,
+            category,
+            amount,
+            labelFont,
+            labelColor,
+            idleColor,
+            highlightColor,
+            flickerColor,
+            onTileStateChange
+        ) {
             super(position, dimensions)
 
             this.state = "DOLLAR_AMOUNT"
@@ -100,12 +113,14 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
             this.answer = answer
             this.question = question
 
-            this.label = label
+            this.category = category
+            this.amount = amount
             this.labelFont = labelFont
             this.labelColor = labelColor
             this.idleColor = idleColor
             this.highlightColor = highlightColor
             this.flickerColor = flickerColor
+            this.onTileStateChange = onTileStateChange
 
             this.currentColor = this.idleColor
             this.flickerCount = 0
@@ -132,11 +147,13 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
         reveal() {
             this.state = "ANSWER"
             this.drawOrder = 5
+            this.onTileStateChange(0, this.category, this.amount)
         }
 
         markUsed() {
             this.state = "USED"
             this.drawOrder = 1
+            this.onTileStateChange(0, this.category, this.amount)
         }
 
         update(elapsedTime) {
@@ -177,7 +194,7 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
 
             ctx.scale(scaleFactor, scaleFactor)
 
-            const label = "$" + this.label
+            const label = "$" + this.amount
             ctx.textAlign = "center"
             ctx.textBaseline = "middle"
             ctx.font = "bold 72px " + this.labelFont
@@ -290,7 +307,7 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
             this.currentRound = 0
         }
 
-        nextRound() {
+        startNextRound() {
             const round = this.gameBoard.rounds[this.currentRound]
             const numCols = round.categories.length
             const numRows = Object.keys(round.categories[0].questions).length
@@ -311,12 +328,14 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
                         new Dimensions(tileWidth, tileHeight),
                         question.answer,
                         question.question,
+                        category.name,
                         label,
                         TILE_FONT,
                         TILE_LABEL_COLOR,
                         TILE_IDLE_COLOR,
                         TILE_HIGHLIGHT_COLOR,
-                        TILE_FLICKER_COLOR
+                        TILE_FLICKER_COLOR,
+                        onTileStateChange
                     )
                     this.tiles[col][row] = tile
                     gameEntities.push(tile)
@@ -388,7 +407,7 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
                     new Dimensions(canvasElement.width, canvasElement.height)
                 )
                 gameEntities.push(board)
-                board.nextRound()
+                board.startNextRound()
                 main(totalSimTime, game)
             })
         })
@@ -414,8 +433,11 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
         isAnswerUsed: function (col, row) {
             return board.tiles[col][row].state === "USED"
         },
-        nextRound: function () {
-            board.nextRound()
+        startNextRound: function () {
+            board.startNextRound()
+        },
+        currentRound: function() {
+            return board.currentRound
         },
         kill: function () {
             GAMEBOARD_STOP_GAME_LOOP = true

@@ -14,6 +14,12 @@ class SocketMessage(BaseModel):
     payload: Dict[str, Any] = {}
 
 
+class Tile(PrecariousnessBaseModel):
+    round: int
+    category: str
+    amount: str
+
+
 """
 Game state models
 """
@@ -22,6 +28,7 @@ Game state models
 class Question(PrecariousnessBaseModel):
     answer: str
     question: str
+    used: bool = True
 
 
 class Category(PrecariousnessBaseModel):
@@ -35,6 +42,7 @@ class Round(PrecariousnessBaseModel):
 
 class GameBoardState(PrecariousnessBaseModel):
     rounds: List[Round]
+    current_round: int = Field(default=0, alias="currentRound")
 
 
 """
