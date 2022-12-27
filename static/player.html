@@ -5,7 +5,12 @@
     <script type="text/javascript">
 
         const waitingForPlayerTemplate = "<p>Waiting for ${PLAYER_NAME} to choose a tile</p>"
-        const questionButtonTemplate = "<div data-category=\"${CATEGORY}\" class=\"question-button\">${CATEGORY}</div>"
+        const categoryButtonTemplate =
+            "<li onclick=\"categoryClicked('${CATEGORY}')\" class=\"question-button\"><p>${CATEGORY}</p></li>"
+        const questionButtonTemplate =
+            "<li onclick=\"questionClicked('${CATEGORY}', '${QUESTION_AMOUNT}')\" class=\"question-button\"><p>${QUESTION_AMOUNT}</p></li>"
+        const questionBackButtonTemplate =
+            "<li onclick=\"backClicked('${CATEGORY}')\" class=\"back-button\"><p>Back</p></li>"
 
         let d = document
 
@@ -42,6 +47,71 @@
         })
 
 
+        function showCategorySelectionButtons() {
+            hideScreens()
+            const chooseCategoryContainer = d.querySelector("#choose-category")
+            chooseCategoryContainer.innerHTML = ""
+            service.getGameBoard().then((gameState) => {
+                const round = gameState.rounds[gameState.currentRound]
+                for (let category of round.categories) {
+                    chooseCategoryContainer.innerHTML += categoryButtonTemplate.replaceAll("${CATEGORY}", category.name)
+                }
+                chooseCategoryContainer.style.display = ""
+            })
+        }
+
+
+        function categoryClicked(categoryName) {
+            const message = JSON.stringify({
+                "operation": "SELECT_CATEGORY",
+                "payload": {
+                    "category": categoryName
+                }
+            })
+            websocket.send(message)
+
+            hideScreens()
+            const chooseQuestionContainer = d.querySelector("#choose-question")
+            chooseQuestionContainer.innerHTML = ""
+            service.getGameBoard().then((gameState) => {
+                const category = gameState.rounds[gameState.currentRound].categories.find((value) => {
+                    return value.name === categoryName
+                })
+                for (let amount of Object.keys(category.questions)) {
+                    chooseQuestionContainer.innerHTML += questionButtonTemplate
+                        .replaceAll("${QUESTION_AMOUNT}", amount)
+                        .replaceAll("${CATEGORY}", categoryName)
+                }
+                chooseQuestionContainer.innerHTML += questionBackButtonTemplate.replaceAll("${CATEGORY}", categoryName)
+                chooseQuestionContainer.style.display = ""
+            })
+        }
+
+
+        function questionClicked(category, amount) {
+            const message = JSON.stringify({
+                "operation": "SELECT_QUESTION",
+                "payload": {
+                    "category": category,
+                    "amount": amount
+                }
+            })
+            websocket.send(message)
+        }
+
+
+        function backClicked(categoryName) {
+            showCategorySelectionButtons()
+            const message = JSON.stringify({
+                "operation": "DESELECT_CATEGORY",
+                "payload": {
+                    "category": categoryName
+                }
+            })
+            websocket.send(message)
+        }
+
+
         function initSocket(playerId) {
             let location = window.location
             let ws_url = "ws://" + location.hostname
@@ -70,17 +140,7 @@
 
         function handlePlayerTurnStart(payload) {
             console.log("PLAYER_TURN_START!!!")
-            hideScreens()
-
-            service.getGameBoard().then((gameState) => {
-                const chooseQuestionContainer = d.querySelector("#choose-question")
-                const round = gameState.rounds[gameState.currentRound]
-                for (let category of round.categories) {
-                    chooseQuestionContainer.innerHTML += questionButtonTemplate.replaceAll("${CATEGORY}", category.name)
-                }
-                chooseQuestionContainer.style.display = ""
-            })
-
+            showCategorySelectionButtons()
         }
 
 
@@ -96,17 +156,22 @@
     </script>
 
     <link rel="stylesheet" href="static/common.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lora&display=swap" rel="stylesheet">
 </head>
 <body>
-<p>Player</p>
 <div id="enter-name" class="screen hideable">
     <div>
         <label for="name-input">Player name:</label><input id="name-input" type="text">
         <button id="init-button">Init</button>
     </div>
 </div>
-<div id="buzzer" class="screen hideable" style="background-color: red; position: absolute; width: 100%; height: 100%; display: none"></div>
+<div id="buzzer" class="screen hideable"
+     style="background-color: red; position: absolute; width: 100%; height: 100%; display: none"></div>
 <div id="waiting-for-player" class="screen hideable" style="display: none"></div>
-<div id="choose-question" class="screen hideable" style="display: none;">
-</div>
+
+<ul id="choose-category" class="screen hideable" style="display: none; padding-left: 0"></ul>
+<ul id="choose-question" class="screen hideable" style="display: none; padding-left: 0"></ul>
+
 </body>

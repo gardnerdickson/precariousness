@@ -5,7 +5,8 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
     const TILE_HIGHLIGHT_COLOR = "#ffb778"
     const TILE_FLICKER_COLOR = "#ffffff"
     const TILE_LABEL_COLOR = "#a8d7e0"
-    const TILE_FONT = "Lora"
+    const TILE_FONT = "bold 72px Lora"
+    const CATEGORY_FONT = "bold 40px Lora"
     const REFERENCE_RESOLUTION_WIDTH = 1920
     const REFERENCE_RESOLUTION_HEIGHT = 1080
 
@@ -98,7 +99,8 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
             answer,
             question,
             category,
-            amount,
+            label,
+            labelPrefix,
             labelFont,
             labelColor,
             idleColor,
@@ -114,7 +116,8 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
             this.question = question
 
             this.category = category
-            this.amount = amount
+            this.label = label
+            this.labelPrefix = labelPrefix
             this.labelFont = labelFont
             this.labelColor = labelColor
             this.idleColor = idleColor
@@ -137,23 +140,27 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
             this.currentColor = this.idleColor
         }
 
-        flicker() {
+        flicker(onFlickerEnd) {
             this.flickerCount = 6
             this.flickerTime = 0
             this.nextFlicker = this.flickerInterval
             this.flickerStartColor = this.currentColor
+            setTimeout(() => {
+                onFlickerEnd()
+            }, this.flickerCount * this.flickerInterval)
+
         }
 
         reveal() {
             this.state = "ANSWER"
             this.drawOrder = 5
-            this.onTileStateChange(0, this.category, this.amount)
+            this.onTileStateChange(0, this.category, this.label)
         }
 
         markUsed() {
             this.state = "USED"
             this.drawOrder = 1
-            this.onTileStateChange(0, this.category, this.amount)
+            this.onTileStateChange(0, this.category, this.label)
         }
 
         update(elapsedTime) {
@@ -194,10 +201,10 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
 
             ctx.scale(scaleFactor, scaleFactor)
 
-            const label = "$" + this.amount
+            const label = this.labelPrefix + this.label
             ctx.textAlign = "center"
             ctx.textBaseline = "middle"
-            ctx.font = "bold 72px " + this.labelFont
+            ctx.font = this.labelFont
 
             ctx.fillStyle = "#000000"
             ctx.fillText(
@@ -310,7 +317,7 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
         startNextRound() {
             const round = this.gameBoard.rounds[this.currentRound]
             const numCols = round.categories.length
-            const numRows = Object.keys(round.categories[0].questions).length
+            const numRows = Object.keys(round.categories[0].questions).length + 1
             const tileWidth = this.dimensions.width / numCols
             const tileHeight = this.dimensions.height / numRows
 
@@ -321,6 +328,25 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
             for (let category of round.categories) {
                 let yOffset = 0
                 let row = 0
+                let categoryTile = new Tile(
+                    new Position(xOffset, yOffset),
+                    new Dimensions(tileWidth, tileHeight),
+                    null,
+                    null,
+                    category.name,
+                    category.name,
+                    "",
+                    CATEGORY_FONT,
+                    TILE_LABEL_COLOR,
+                    TILE_IDLE_COLOR,
+                    TILE_HIGHLIGHT_COLOR,
+                    TILE_FLICKER_COLOR,
+                    null
+                )
+                this.tiles[col][row] = categoryTile
+                gameEntities.push(categoryTile)
+                row += 1
+                yOffset += tileHeight
                 for (const [label, question] of Object.entries(category.questions)) {
                     console.log(label, question)
                     let tile = new Tile(
@@ -330,6 +356,7 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
                         question.question,
                         category.name,
                         label,
+                        "$",
                         TILE_FONT,
                         TILE_LABEL_COLOR,
                         TILE_IDLE_COLOR,
@@ -385,7 +412,7 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
     }
 
 
-    (function() {
+    (function () {
         let game = null
 
         function main(totalSimTime, game) {
@@ -414,7 +441,40 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
     })();
 
 
+    function categoryToColumn(category) {
+        for (let i = 0; i < board.tiles.length; i++) {
+            if (board.tiles[i][0].category === category) {
+                return i
+            }
+        }
+    }
+
+
+    function answerToRow(col, amount) {
+        for (let j = 0; j < board.tiles[col].length; j++) {
+            if (board.tiles[col][j].label === amount) {
+                return j
+            }
+        }
+    }
+
+
     return {
+        setCategoryHighlight: function (category) {
+            let col = categoryToColumn(category)
+            board.setColumnHighlight(col)
+        },
+        unsetCategoryHighlight: function (category) {
+            let col = categoryToColumn(category)
+            board.unsetColumnHighlight(col)
+        },
+        flickerAnswer: function (category, answer, onFlickerEnd) {
+            let col = categoryToColumn(category)
+            let row = answerToRow(col, answer)
+            board.tiles[col][row].flicker(() => {
+                onFlickerEnd(col, row)
+            })
+        },
         setColumnHighlight: function (col) {
             board.setColumnHighlight(col)
         },
@@ -436,7 +496,7 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
         startNextRound: function () {
             board.startNextRound()
         },
-        currentRound: function() {
+        currentRound: function () {
             return board.currentRound
         },
         kill: function () {

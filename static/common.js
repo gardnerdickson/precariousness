@@ -73,4 +73,3 @@ const service = {
             })
     }
 }
-

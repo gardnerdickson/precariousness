@@ -26,7 +26,11 @@ from server.model import (
     StartGameMessage,
     WaitingForPlayerMessage,
     GameBoardState,
-    LoadGameBoardMessage, Tile,
+    LoadGameBoardMessage,
+    Tile,
+    SelectQuestionMessage,
+    QuestionSelectedMessage,
+    DeselectQuestionMessage,
 )
 
 
@@ -95,7 +99,7 @@ async def get_gameboard():
 
 @app.post("/mark_answer_used")
 async def mark_answer_used(tile: Tile):
-    categories = game_board_state.rounds[tile.round].categories
+    categories = game_board_state.rounds[game_board_state.current_round].categories
     category = next((c for c in categories if c == tile.category), None)
     if not category:
         raise KeyError(f"Category does not exist: {tile.category}")
@@ -195,6 +199,22 @@ async def handle_start_game(_: StartGameMessage):
             await socket_handler.send_message("PLAYER_TURN_START", PlayerTurnStartMessage(), socket)
         else:
             await socket_handler.send_message("WAITING_FOR_PLAYER_CHOICE", waiting_for_player_message, socket)
+
+
+@socket_handler.operation("SELECT_CATEGORY", SelectQuestionMessage)
+async def handle_category_selected(select_category_message: SelectQuestionMessage, player_id: str):
+    category_selected_message = QuestionSelectedMessage(category=select_category_message.category)
+    await socket_handler.send_message("CATEGORY_SELECTED", category_selected_message, [host_socket, gameboard_socket])
+
+
+@socket_handler.operation("DESELECT_CATEGORY", DeselectQuestionMessage)
+async def handle_deselect_category(deselect_category_message: DeselectQuestionMessage, player_id: str):
+    await socket_handler.send_message("CATEGORY_DESELECTED", deselect_category_message, [host_socket, gameboard_socket])
+
+
+@socket_handler.operation("SELECT_QUESTION", SelectQuestionMessage)
+async def handle_question_selected(select_question_message: SelectQuestionMessage, player_id: str):
+    await socket_handler.send_message("QUESTION_SELECTED", select_question_message, [host_socket, gameboard_socket])
 
 
 @socket_handler.operation("PLAYER_BUZZ", PlayerBuzzMessage)

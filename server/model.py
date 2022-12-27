@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -15,9 +15,8 @@ class SocketMessage(BaseModel):
 
 
 class Tile(PrecariousnessBaseModel):
-    round: int
     category: str
-    amount: str
+    amount: Optional[str]
 
 
 """
@@ -67,6 +66,14 @@ class StartGameMessage(PrecariousnessBaseModel):
     pass
 
 
+class SelectQuestionMessage(Tile):
+    pass
+
+
+class DeselectQuestionMessage(Tile):
+    pass
+
+
 class ErrorMessage(PrecariousnessBaseModel):
     error: str
 
@@ -86,6 +93,10 @@ class WaitingForPlayerMessage(PrecariousnessBaseModel):
 
 
 class PlayerTurnStartMessage(PrecariousnessBaseModel):
+    pass
+
+
+class QuestionSelectedMessage(Tile):
     pass
 
 

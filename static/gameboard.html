@@ -14,6 +14,9 @@
         socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
         socketMessageRouter.addRoute("LOAD_GAME_BOARD", handleStartGame)
         socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
+        socketMessageRouter.addRoute("CATEGORY_SELECTED", handleCategorySelected)
+        socketMessageRouter.addRoute("CATEGORY_DESELECTED", handleCategoryDeselected)
+        socketMessageRouter.addRoute("QUESTION_SELECTED", handleQuestionSelected)
 
         let gameBoard = null
 
@@ -69,6 +72,26 @@
 
         function handleWaitingForPlayer(payload) {
             console.log("waiting for player:", payload)
+        }
+
+
+        function handleCategorySelected(payload) {
+            console.log("handle category selected")
+            gameBoard.setCategoryHighlight(payload.category)
+        }
+
+
+        function handleCategoryDeselected(payload) {
+            gameBoard.unsetCategoryHighlight(payload.category)
+        }
+
+
+        function handleQuestionSelected(payload) {
+            console.log("handle question selected")
+            gameBoard.flickerAnswer(payload.category, payload.amount, (col, row) => {
+                gameBoard.unsetCategoryHighlight(payload.category)
+                gameBoard.revealAnswer(col, row)
+            })
         }
 
 

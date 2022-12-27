@@ -1,6 +1,6 @@
 import logging
 
-from typing import Type
+from typing import Type, Union, List
 
 from starlette.websockets import WebSocket
 
@@ -57,6 +57,9 @@ class SocketHandler:
         raise exc
 
     @staticmethod
-    async def send_message(operation: str, message: PrecariousnessBaseModel, socket: WebSocket):
+    async def send_message(operation: str, message: PrecariousnessBaseModel, sockets: Union[WebSocket, List[WebSocket]]):
         message = SocketMessage(operation=operation, payload=message.dict(by_alias=True))
-        await socket.send_json(message.dict(by_alias=True))
+        if isinstance(sockets, WebSocket):
+            sockets = [sockets]
+        for socket in sockets:
+            await socket.send_json(message.dict(by_alias=True))
