@@ -30,7 +30,7 @@ from server.model import (
     Tile,
     SelectQuestionMessage,
     QuestionSelectedMessage,
-    DeselectQuestionMessage,
+    DeselectQuestionMessage, CategorySelectedMessage,
 )
 
 
@@ -100,11 +100,11 @@ async def get_gameboard():
 @app.post("/mark_answer_used")
 async def mark_answer_used(tile: Tile):
     categories = game_board_state.rounds[game_board_state.current_round].categories
-    category = next((c for c in categories if c == tile.category), None)
+    category = next((c for c in categories if c.name == tile.category), None)
     if not category:
         raise KeyError(f"Category does not exist: {tile.category}")
     category.questions[tile.amount].used = True
-    logger.info(f"Marked {tile.round} -> {tile.category} -> {tile.amount} as used")
+    logger.info(f"Marked {game_board_state.current_round} -> {tile.category} -> {tile.amount} as used")
 
 
 @app.websocket("/player_socket/{player_id}")
@@ -203,7 +203,7 @@ async def handle_start_game(_: StartGameMessage):
 
 @socket_handler.operation("SELECT_CATEGORY", SelectQuestionMessage)
 async def handle_category_selected(select_category_message: SelectQuestionMessage, player_id: str):
-    category_selected_message = QuestionSelectedMessage(category=select_category_message.category)
+    category_selected_message = CategorySelectedMessage(category=select_category_message.category)
     await socket_handler.send_message("CATEGORY_SELECTED", category_selected_message, [host_socket, gameboard_socket])
 
 
@@ -214,7 +214,13 @@ async def handle_deselect_category(deselect_category_message: DeselectQuestionMe
 
 @socket_handler.operation("SELECT_QUESTION", SelectQuestionMessage)
 async def handle_question_selected(select_question_message: SelectQuestionMessage, player_id: str):
-    await socket_handler.send_message("QUESTION_SELECTED", select_question_message, [host_socket, gameboard_socket])
+    categories = game_board_state.rounds[game_board_state.current_round].categories
+    category = next((c for c in categories if c.name == select_question_message.category), None)
+    if not category:
+        raise KeyError(f"Category does not exist: {select_question_message.category}")
+    answer_text = category.questions[select_question_message.amount].answer
+    question_selected_message = QuestionSelectedMessage(answer_text=answer_text, **select_question_message.dict())
+    await socket_handler.send_message("QUESTION_SELECTED", question_selected_message, [host_socket, gameboard_socket])
 
 
 @socket_handler.operation("PLAYER_BUZZ", PlayerBuzzMessage)

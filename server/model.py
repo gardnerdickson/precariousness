@@ -96,8 +96,12 @@ class PlayerTurnStartMessage(PrecariousnessBaseModel):
     pass
 
 
-class QuestionSelectedMessage(Tile):
+class CategorySelectedMessage(Tile):
     pass
+
+
+class QuestionSelectedMessage(Tile):
+    answer_text: str = Field(alias="answerText")
 
 
 class LoadGameBoardMessage(PrecariousnessBaseModel):

@@ -6,6 +6,7 @@
 
         const playerTemplate = "<div>${PLAYER_NAME} | ${PLAYER_SCORE}</div>"
         const waitingForPlayerTemplate = "<p>Waiting for ${PLAYER_NAME} to choose a tile</p>"
+        const answerTemplate = "<p>${ANSWER_TEXT}</p>"
 
         const d = document
 
@@ -29,6 +30,7 @@
             socketMessageRouter = new SocketMessageRouter(ws_url)
             socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
             socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
+            socketMessageRouter.addRoute("QUESTION_SELECTED", handleQuestionSelected)
         }
 
 
@@ -51,6 +53,14 @@
         }
 
 
+        function handleQuestionSelected(payload) {
+            hideScreens()
+            const el = d.querySelector("#answer")
+            el.style.display = ""
+            el.innerHTML = answerTemplate.replace("${ANSWER_TEXT}", payload.answerText)
+        }
+
+
         initSocket()
 
     </script>
@@ -70,4 +80,5 @@
     <button id="start-game">All Players In</button>
 </div>
 <div id="waiting-for-player" class="screen hideable" style="display: none"></div>
+<div id="answer" class="screen hideable" style="display: none"></div>
 </body>
