@@ -8,30 +8,44 @@ function hideScreens() {
 
 class SocketMessageRouter {
 
-    constructor() {
-        self.handlers = new Map()
+    constructor(ws_url) {
+        this.handlers = new Map()
+        this.websocket = new WebSocket(ws_url)
+
+        this.websocket.onmessage = (event) => this.onMessage(event)
+        this.websocket.onopen = (event) => this.onOpen(event)
     }
 
     addRoute(route, handler) {
-        if (self.handlers.has(route)) {
+        if (this.handlers.has(route)) {
             throw Error("Route " + route + " already registered")
         }
-        self.handlers.set(route, handler)
+        this.handlers.set(route, handler)
     }
 
-    onmessage(event) {
+    onOpen(event) {
+        console.debug("Websocket opened:", event)
+    }
+
+    onMessage(event) {
         console.debug("Received message:", event)
         const message = JSON.parse(event.data)
         if ("error" in message) {
             console.error(message.error)
         } else {
             let operation = message.operation
-            if (self.handlers.has(operation)) {
-                self.handlers.get(operation)(message.payload)
+            if (this.handlers.has(operation)) {
+                this.handlers.get(operation)(message.payload)
             } else {
                 console.warn("Encountered unregistered route:", event)
             }
         }
+    }
+    
+    sendMessage(operation, obj) {
+        console.debug("Sending message:", obj)
+        const message = JSON.stringify({"operation": operation, "payload": obj})
+        this.websocket.send(message)
     }
 }
 

@@ -15,40 +15,37 @@
         let d = document
 
         let playerId = null
-        let websocket = null
-
-        const socketMessageRouter = new SocketMessageRouter()
-        socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
-        socketMessageRouter.addRoute("PLAYER_TURN_START", handlePlayerTurnStart)
+        let socketMessageRouter = null
 
         d.addEventListener("DOMContentLoaded", () => {
             d.querySelector("#init-button").addEventListener("click", () => {
-                if (websocket !== null) {
-                    const playerName = d.querySelector("#name-input").value
-                    const message = JSON.stringify({
-                        "operation": "PLAYER_INIT",
-                        "payload": {
-                            "playerName": playerName
-                        }
-                    })
-                    websocket.send(message)
-                    hideScreens()
-                }
+                const playerName = d.querySelector("#name-input").value
+                socketMessageRouter.sendMessage("PLAYER_INIT", {"playerName": playerName})
+                hideScreens()
             })
 
             d.querySelector("#buzzer").addEventListener("click", () => {
-                if (websocket != null) {
-                    const message = JSON.stringify({
-                        "operation": "PLAYER_BUZZ",
-                    })
-                    websocket.send(message)
-                }
+                socketMessageRouter.sendMessage("PLAYER_BUZZ", {})
             })
         })
 
 
+        function initSocket(playerId) {
+            let location = window.location
+            let ws_url = "ws://" + location.hostname
+            if (location.port !== "") {
+                ws_url += ":" + location.port
+            }
+            ws_url += "/player_socket/" + playerId
+            console.log("Player ID is", playerId, ". Opening websocket")
+
+            socketMessageRouter = new SocketMessageRouter(ws_url)
+            socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
+            socketMessageRouter.addRoute("PLAYER_TURN_START", handlePlayerTurnStart)
+        }
+
+
         function showCategorySelectionButtons() {
-            hideScreens()
             const chooseCategoryContainer = d.querySelector("#choose-category")
             chooseCategoryContainer.innerHTML = ""
             service.getGameBoard().then((gameState) => {
@@ -62,13 +59,7 @@
 
 
         function categoryClicked(categoryName) {
-            const message = JSON.stringify({
-                "operation": "SELECT_CATEGORY",
-                "payload": {
-                    "category": categoryName
-                }
-            })
-            websocket.send(message)
+            socketMessageRouter.sendMessage("SELECT_CATEGORY", {"category": categoryName})
 
             hideScreens()
             const chooseQuestionContainer = d.querySelector("#choose-question")
@@ -89,44 +80,15 @@
 
 
         function questionClicked(category, amount) {
-            const message = JSON.stringify({
-                "operation": "SELECT_QUESTION",
-                "payload": {
-                    "category": category,
-                    "amount": amount
-                }
-            })
-            websocket.send(message)
+            hideScreens()
+            socketMessageRouter.sendMessage("SELECT_QUESTION", {"category": category, "amount": amount})
         }
 
 
         function backClicked(categoryName) {
+            hideScreens()
             showCategorySelectionButtons()
-            const message = JSON.stringify({
-                "operation": "DESELECT_CATEGORY",
-                "payload": {
-                    "category": categoryName
-                }
-            })
-            websocket.send(message)
-        }
-
-
-        function initSocket(playerId) {
-            let location = window.location
-            let ws_url = "ws://" + location.hostname
-            if (location.port !== "") {
-                ws_url += ":" + location.port
-            }
-            ws_url += "/player_socket/" + playerId
-            console.log("Player ID is", playerId, ". Opening websocket")
-            websocket = new WebSocket(ws_url)
-
-            websocket.onopen = function (_) {
-                console.log("The socket opened")
-            }
-
-            websocket.onmessage = socketMessageRouter.onmessage
+            socketMessageRouter.sendMessage("DESELECT_CATEGORY", {"category": categoryName})
         }
 
 
@@ -140,12 +102,8 @@
 
         function handlePlayerTurnStart(payload) {
             console.log("PLAYER_TURN_START!!!")
+            hideScreens()
             showCategorySelectionButtons()
-        }
-
-
-        function sendBadMessage() {
-            websocket.send("adfasdfasdf")
         }
 
 

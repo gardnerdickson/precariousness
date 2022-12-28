@@ -6,18 +6,9 @@
     <script type="text/javascript">
 
         const playerTemplate = "<div>${PLAYER_NAME} | ${PLAYER_SCORE}</div>"
-
         const d = document
-        let websocket = null
 
-        const socketMessageRouter = new SocketMessageRouter()
-        socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
-        socketMessageRouter.addRoute("LOAD_GAME_BOARD", handleStartGame)
-        socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
-        socketMessageRouter.addRoute("CATEGORY_SELECTED", handleCategorySelected)
-        socketMessageRouter.addRoute("CATEGORY_DESELECTED", handleCategoryDeselected)
-        socketMessageRouter.addRoute("QUESTION_SELECTED", handleQuestionSelected)
-
+        let socketMessageRouter = null
         let gameBoard = null
 
 
@@ -25,6 +16,7 @@
             hideScreens()
             d.querySelector("#player-list-container").style.display = ""
         })
+
 
         function initSocket() {
             let location = window.location
@@ -34,13 +26,13 @@
             }
             ws_url += "/gameboard_socket"
             console.log("Opening gameboard socket")
-            websocket = new WebSocket(ws_url)
-
-            websocket.onopen = function(_) {
-                console.log("Gameboard socket opened.")
-            }
-
-            websocket.onmessage = socketMessageRouter.onmessage
+            socketMessageRouter = new SocketMessageRouter(ws_url)
+            socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
+            socketMessageRouter.addRoute("LOAD_GAME_BOARD", handleStartGame)
+            socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
+            socketMessageRouter.addRoute("CATEGORY_SELECTED", handleCategorySelected)
+            socketMessageRouter.addRoute("CATEGORY_DESELECTED", handleCategoryDeselected)
+            socketMessageRouter.addRoute("QUESTION_SELECTED", handleQuestionSelected)
         }
 
 

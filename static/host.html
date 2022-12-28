@@ -8,22 +8,15 @@
         const waitingForPlayerTemplate = "<p>Waiting for ${PLAYER_NAME} to choose a tile</p>"
 
         const d = document
-        let websocket = null
 
-        const socketMessageRouter = new SocketMessageRouter()
-        socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
-        socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
+        let socketMessageRouter = null
 
         d.addEventListener("DOMContentLoaded", () => {
             d.querySelector("#start-game").addEventListener("click", () => {
-                if (websocket !== null) {
-                    const message = JSON.stringify({
-                        "operation": "START_GAME",
-                    })
-                    websocket.send(message)
-                }
+                socketMessageRouter.sendMessage("START_GAME", {})
             })
         })
+
 
         function initSocket() {
             let location = window.location
@@ -33,13 +26,9 @@
             }
             ws_url += "/host_socket"
             console.log("Opening host socket")
-            websocket = new WebSocket(ws_url)
-
-            websocket.onopen = function (_) {
-                console.log("Host socket opened.")
-            }
-
-            websocket.onmessage = socketMessageRouter.onmessage
+            socketMessageRouter = new SocketMessageRouter(ws_url)
+            socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
+            socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
         }
 
 
