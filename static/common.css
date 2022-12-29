@@ -33,3 +33,26 @@ body {
     flex-direction: column;
     border: 3px solid #eb8934;
 }
+
+#player-summary {
+    display: flex;
+    width: 100%;
+    padding: 0;
+}
+
+.player-summary-item {
+    margin-top: 10px;
+    padding-left: 5px;
+    padding-right: 5px;
+    display: flex;
+    justify-content: center;
+    align-content: center;
+    text-align: center;
+    font-weight: bold;
+    flex-direction: row;
+    border: 1px solid black;
+}
+
+.player-summary-item.buzzed {
+    background-color: #eb8934;
+}

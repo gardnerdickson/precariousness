@@ -1,5 +1,4 @@
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -11,7 +10,7 @@ class PrecariousnessBaseModel(BaseModel):
 
 class SocketMessage(BaseModel):
     operation: str
-    payload: Dict[str, Any] = {}
+    payload: Union[List[Any], Dict[str, Any]] = {}
 
 
 class Tile(PrecariousnessBaseModel):
@@ -59,7 +58,7 @@ class PlayerChooseAnswerMessage(PrecariousnessBaseModel):
 
 
 class PlayerBuzzMessage(PrecariousnessBaseModel):
-    pass
+    player_name: str = Field(alias="playerName")
 
 
 class StartGameMessage(PrecariousnessBaseModel):
@@ -72,6 +71,16 @@ class SelectQuestionMessage(Tile):
 
 class DeselectQuestionMessage(Tile):
     pass
+
+
+class QuestionCorrectMessage(PrecariousnessBaseModel):
+    player_name: str = Field(alias="playerName")
+    amount: int
+
+
+class QuestionIncorrectMessage(PrecariousnessBaseModel):
+    player_name: str = Field(alias="playerName")
+    amount: int
 
 
 class ErrorMessage(PrecariousnessBaseModel):
@@ -104,12 +113,15 @@ class QuestionSelectedMessage(Tile):
     answer_text: str = Field(alias="answerText")
 
 
+class QuestionAnswered(PrecariousnessBaseModel):
+    pass
+
+
 class LoadGameBoardMessage(PrecariousnessBaseModel):
     game_board: GameBoardState = Field(alias="gameBoard")
 
 
-@dataclass
-class Player:
+class Player(PrecariousnessBaseModel):
     id: str
     name: str
     score: int

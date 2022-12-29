@@ -33,6 +33,7 @@
             socketMessageRouter.addRoute("CATEGORY_SELECTED", handleCategorySelected)
             socketMessageRouter.addRoute("CATEGORY_DESELECTED", handleCategoryDeselected)
             socketMessageRouter.addRoute("QUESTION_SELECTED", handleQuestionSelected)
+            socketMessageRouter.addRoute("QUESTION_ANSWERED", handleQuestionAnswered)
         }
 
 
@@ -84,6 +85,11 @@
                 gameBoard.unsetCategoryHighlight(payload.category)
                 gameBoard.revealAnswer(col, row)
             })
+        }
+
+
+        function handleQuestionAnswered(payload) {
+
         }
 
 

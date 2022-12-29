@@ -4,17 +4,22 @@
     <script type="text/javascript" src="static/common.js"></script>
     <script type="text/javascript">
 
-        const playerTemplate = "<div>${PLAYER_NAME} | ${PLAYER_SCORE}</div>"
         const waitingForPlayerTemplate = "<p>Waiting for ${PLAYER_NAME} to choose a tile</p>"
         const answerTemplate = "<p>${ANSWER_TEXT}</p>"
+        const playerSummaryTemplate = "<p>${PLAYER_NAME} - ${PLAYER_SCORE}</p>"
+        const playerSummaryElementTemplate = "<li id=\"${PLAYER_NAME}-summary\" class=\"player-summary-item\">" +
+            playerSummaryTemplate +
+            "</li>"
 
         const d = document
+        const players = new Map()
 
         let socketMessageRouter = null
 
         d.addEventListener("DOMContentLoaded", () => {
             d.querySelector("#start-game").addEventListener("click", () => {
                 socketMessageRouter.sendMessage("START_GAME", {})
+                initMainHostScreen()
             })
         })
 
@@ -31,14 +36,18 @@
             socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
             socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
             socketMessageRouter.addRoute("QUESTION_SELECTED", handleQuestionSelected)
+            socketMessageRouter.addRoute("PLAYER_BUZZED", handlePlayerBuzzed)
+            socketMessageRouter.addRoute("QUESTION_ANSWERED", handleQuestionAnswered)
+            socketMessageRouter.addRoute("PLAYER_STATE_CHANGED", handlePlayerStateChange)
         }
 
 
         function handlePlayerJoined(payload) {
-            const playerList = d.querySelector("#player-list")
-            const playerInfo = playerTemplate
-                .replace("${PLAYER_NAME}", payload.playerName)
-                .replace("${PLAYER_SCORE}", payload.playerScore)
+            players.set(payload.playerName, payload.playerScore)
+            const playerList = d.querySelector("#player-summary")
+            const playerInfo = playerSummaryElementTemplate
+                .replaceAll("${PLAYER_NAME}", payload.playerName)
+                .replaceAll("${PLAYER_SCORE}", payload.playerScore)
 
             playerList.innerHTML += playerInfo
         }
@@ -54,10 +63,59 @@
 
 
         function handleQuestionSelected(payload) {
-            hideScreens()
-            const el = d.querySelector("#answer")
-            el.style.display = ""
-            el.innerHTML = answerTemplate.replace("${ANSWER_TEXT}", payload.answerText)
+            d.querySelector("#main").style.display = ""
+            d.querySelector("#waiting-for-player").style.display = "none"
+            const answerElement = d.querySelector("#answer")
+            answerElement.style.display = ""
+            answerElement.innerHTML = answerTemplate.replace("${ANSWER_TEXT}", payload.answerText)
+            d.querySelector("#question-buttons").style.display = ""
+            d.querySelector("#question-correct-button").dataset.amount = payload.amount
+            d.querySelector("#question-incorrect-button").dataset.amount = payload.amount
+        }
+
+
+        function handlePlayerBuzzed(payload) {
+            const playerName = payload.playerName
+            const playerSummaryItem = d.querySelector("#" + playerName + "-summary")
+            playerSummaryItem.classList.add("buzzed")
+            d.querySelector("#question-correct-button").dataset.playerName = playerName
+            d.querySelector("#question-incorrect-button").dataset.playerName = playerName
+        }
+
+
+        function handleQuestionAnswered(payload) {
+            d.querySelector("#answer").innerHTML = ""
+            d.querySelector("#question-buttons").style.display = "none"
+        }
+
+
+        function handlePlayerStateChange(players) {
+            for (let player of players) {
+                let playerSummary = d.querySelector("#" + player.name + "-summary")
+                playerSummary.innerHTML = playerSummaryTemplate
+                    .replaceAll("${PLAYER_NAME}", player.name)
+                    .replaceAll("${PLAYER_SCORE}", player.score)
+            }
+        }
+
+
+        function initMainHostScreen() {
+            d.querySelector("#main").style.display = ""
+            d.querySelector("#start-game").style.display = "none"
+        }
+
+
+        function questionCorrect(buttonElement) {
+            const playerName = buttonElement.dataset.playerName
+            const amount = buttonElement.dataset.amount
+            socketMessageRouter.sendMessage("QUESTION_CORRECT", {"playerName": playerName, "amount": amount})
+        }
+
+
+        function questionIncorrect(buttonElement) {
+            const playerName = buttonElement.dataset.playerName
+            const amount = buttonElement.dataset.amount
+            socketMessageRouter.sendMessage("QUESTION_INCORRECT", {"playerName": playerName, "amount": amount})
         }
 
 
@@ -68,17 +126,14 @@
     <link rel="stylesheet" href="static/common.css">
 </head>
 <body>
-<p>Host</p>
-<div>
-    <h4>Players</h4>
-    <div id="player-list">
-
+<div id="waiting-for-player" class="screen hideable" style="display: none"></div>
+<div id="main" class="screen hideable">
+    <ul id="player-summary"></ul>
+    <button id="start-game">All Players In</button>
+    <div id="answer"></div>
+    <div id="question-buttons" style="display: none">
+        <button id="question-correct-button" onclick="questionCorrect(this)" >Correct</button>
+        <button id="question-incorrect-button" onclick="questionIncorrect(this)">Incorrect</button>
     </div>
 </div>
-<div id="players-joining" class="screen hideable">
-    <label for="start-game"></label>
-    <button id="start-game">All Players In</button>
-</div>
-<div id="waiting-for-player" class="screen hideable" style="display: none"></div>
-<div id="answer" class="screen hideable" style="display: none"></div>
 </body>

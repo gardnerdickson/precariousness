@@ -57,9 +57,13 @@ class SocketHandler:
         raise exc
 
     @staticmethod
-    async def send_message(operation: str, message: PrecariousnessBaseModel, sockets: Union[WebSocket, List[WebSocket]]):
-        message = SocketMessage(operation=operation, payload=message.dict(by_alias=True))
+    async def send_message(operation: str, message: Union[PrecariousnessBaseModel, List[PrecariousnessBaseModel]], sockets: Union[WebSocket, List[WebSocket]]):
+        if isinstance(message, list):
+            message = [m.dict(by_alias=True) for m in message]
+            data = SocketMessage(operation=operation, payload=message).dict(by_alias=True)
+        else:
+            data = SocketMessage(operation=operation, payload=message.dict(by_alias=True)).dict(by_alias=True)
         if isinstance(sockets, WebSocket):
             sockets = [sockets]
         for socket in sockets:
-            await socket.send_json(message.dict(by_alias=True))
+            await socket.send_json(data)

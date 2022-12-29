@@ -30,7 +30,11 @@ from server.model import (
     Tile,
     SelectQuestionMessage,
     QuestionSelectedMessage,
-    DeselectQuestionMessage, CategorySelectedMessage,
+    DeselectQuestionMessage,
+    CategorySelectedMessage,
+    QuestionCorrectMessage,
+    QuestionIncorrectMessage,
+    QuestionAnswered,
 )
 
 
@@ -173,7 +177,7 @@ async def handle_exception(websocket: WebSocket, _: Exception):
 
 @socket_handler.operation("PLAYER_INIT", PlayerInitMessage)
 async def handle_player_init(inbound_message: PlayerInitMessage, player_id: str):
-    players[player_id] = Player(player_id, inbound_message.player_name, 0)
+    players[player_id] = Player(id=player_id, name=inbound_message.player_name, score=0)
     logger.info(f"Player initialized: {players[player_id]}")
 
     outbound_message = PlayerJoinedMessage(player_name=inbound_message.player_name, player_score=0)
@@ -220,9 +224,36 @@ async def handle_question_selected(select_question_message: SelectQuestionMessag
         raise KeyError(f"Category does not exist: {select_question_message.category}")
     answer_text = category.questions[select_question_message.amount].answer
     question_selected_message = QuestionSelectedMessage(answer_text=answer_text, **select_question_message.dict())
-    await socket_handler.send_message("QUESTION_SELECTED", question_selected_message, [host_socket, gameboard_socket])
+    await socket_handler.send_message("QUESTION_SELECTED", question_selected_message, [host_socket, gameboard_socket, *player_sockets.values()])
+
+
+player_buzzed = None
 
 
 @socket_handler.operation("PLAYER_BUZZ", PlayerBuzzMessage)
 async def handle_player_buzz(_: PlayerBuzzMessage, player_id: str):
-    logger.info(f"Player {player_id} buzzed!!")
+    player_name = players[player_id].name
+    global player_buzzed
+    if player_buzzed is None:
+        logger.info(f"{player_name} was the first to buzz")
+        player_buzzed = player_id
+        player_buzz_message = PlayerBuzzMessage(player_name=player_name)
+        await socket_handler.send_message("PLAYER_BUZZED", player_buzz_message, [host_socket, *player_sockets.values()])
+    else:
+        logger.info(f"Player {player_name} buzzed too late.")
+
+
+@socket_handler.operation("QUESTION_CORRECT", QuestionCorrectMessage)
+async def handle_question_correct(question_correct_message: QuestionCorrectMessage):
+    player = next((p for p in players.values() if p.name == question_correct_message.player_name))
+    player.score += question_correct_message.amount
+    await socket_handler.send_message("QUESTION_ANSWERED", QuestionAnswered(), [host_socket, gameboard_socket, *player_sockets.values()])
+    await socket_handler.send_message("PLAYER_STATE_CHANGED", list(players.values()), [host_socket, gameboard_socket, *player_sockets.values()])
+
+
+@socket_handler.operation("QUESTION_INCORRECT", QuestionIncorrectMessage)
+async def handle_question_incorrect(question_incorrect_message: QuestionIncorrectMessage):
+    player = next((p for p in players.values() if p.name == question_incorrect_message.player_name))
+    player.score -= question_incorrect_message.amount
+    await socket_handler.send_message("QUESTION_ANSWERED", QuestionAnswered(), [host_socket, gameboard_socket, *player_sockets.values()])
+    await socket_handler.send_message("PLAYER_STATE_CHANGED", list(players.values()), [host_socket, gameboard_socket, *player_sockets.values()])

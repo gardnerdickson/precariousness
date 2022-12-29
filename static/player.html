@@ -14,18 +14,19 @@
 
         let d = document
 
-        let playerId = null
+        let playerName = null
         let socketMessageRouter = null
 
         d.addEventListener("DOMContentLoaded", () => {
             d.querySelector("#init-button").addEventListener("click", () => {
-                const playerName = d.querySelector("#name-input").value
-                socketMessageRouter.sendMessage("PLAYER_INIT", {"playerName": playerName})
+                const inputPlayerName = d.querySelector("#name-input").value
+                playerName = inputPlayerName
+                socketMessageRouter.sendMessage("PLAYER_INIT", {"playerName": inputPlayerName})
                 hideScreens()
             })
 
             d.querySelector("#buzzer").addEventListener("click", () => {
-                socketMessageRouter.sendMessage("PLAYER_BUZZ", {})
+                socketMessageRouter.sendMessage("PLAYER_BUZZ", {"playerName": playerName})
             })
         })
 
@@ -42,6 +43,8 @@
             socketMessageRouter = new SocketMessageRouter(ws_url)
             socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
             socketMessageRouter.addRoute("PLAYER_TURN_START", handlePlayerTurnStart)
+            socketMessageRouter.addRoute("QUESTION_SELECTED", handleQuestionSelected)
+            socketMessageRouter.addRoute("QUESTION_ANSWERED", handleQuestionAnswered)
         }
 
 
@@ -104,6 +107,17 @@
             console.log("PLAYER_TURN_START!!!")
             hideScreens()
             showCategorySelectionButtons()
+        }
+
+
+        function handleQuestionSelected(payload) {
+            hideScreens()
+            d.querySelector("#buzzer").style.display = ""
+        }
+
+
+        function handleQuestionAnswered(payload) {
+
         }
 
 
