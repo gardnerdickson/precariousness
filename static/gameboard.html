@@ -88,7 +88,7 @@
 
 
         function onGameBoardTileStateChange(round, category, amount) {
-            service.markTileUsed(round, category, amount)
+            service.markAnswerUsed(round, category, amount)
                 .then(() => {
                     console.log("Mark tile used", round, category, amount)
                 })

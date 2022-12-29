@@ -69,14 +69,15 @@ const service = {
                 return response.json()
             })
     },
-    markTileUsed: function(round, category, amount) {
+    markAnswerUsed: function(round, category, amount) {
         const tile_request_body = {
             "category": category,
             "amount": amount
         }
         return fetch("/mark_answer_used", {
             method: "POST",
-            json: tile_request_body
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(tile_request_body)
         })
             .then((response) => {
                 if (!response.ok) {
