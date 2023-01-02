@@ -87,6 +87,9 @@
         function handleQuestionAnswered(payload) {
             d.querySelector("#answer").innerHTML = ""
             d.querySelector("#question-buttons").style.display = "none"
+            d.querySelectorAll(".player-summary-item").forEach((item) => {
+                item.classList.remove("buzzed")
+            })
         }
 
 
@@ -110,6 +113,9 @@
             const playerName = buttonElement.dataset.playerName
             const amount = buttonElement.dataset.amount
             const category = buttonElement.dataset.category
+            if ([playerName, amount, category].some(x => x === null || x === undefined)) {
+                return;
+            }
             socketMessageRouter.sendMessage("QUESTION_CORRECT", {"playerName": playerName, "amount": amount, "category": category})
         }
 
@@ -118,6 +124,9 @@
             const playerName = buttonElement.dataset.playerName
             const amount = buttonElement.dataset.amount
             const category = buttonElement.dataset.category
+            if ([playerName, amount, category].some(x => x === null || x === undefined)) {
+                return;
+            }
             socketMessageRouter.sendMessage("QUESTION_INCORRECT", {"playerName": playerName, "amount": amount, "category": category})
         }
 
