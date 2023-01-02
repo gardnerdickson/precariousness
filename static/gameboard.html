@@ -5,6 +5,9 @@
     <script type="text/javascript" src="static/gameboard.js"></script>
     <script type="text/javascript">
 
+        const TILE_FLICKER_INTERVAL = 200
+        const TILE_FLICKER_COUNT = 6
+
         const playerTemplate = "<div>${PLAYER_NAME} | ${PLAYER_SCORE}</div>"
         const d = document
 
@@ -80,11 +83,11 @@
 
 
         function handleQuestionSelected(payload) {
-            console.log("handle question selected")
-            gameBoard.flickerAnswer(payload.category, payload.amount, (col, row) => {
+            gameBoard.flickerAnswer(payload.category, payload.amount, TILE_FLICKER_COUNT, TILE_FLICKER_INTERVAL)
+            setTimeout(() => {
                 gameBoard.unsetCategoryHighlight(payload.category)
-                gameBoard.revealAnswer(col, row)
-            })
+                gameBoard.revealAnswer(payload.category, payload.amount)
+            }, TILE_FLICKER_COUNT * TILE_FLICKER_INTERVAL + 200)
         }
 
 

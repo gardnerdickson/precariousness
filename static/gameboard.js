@@ -125,7 +125,7 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
 
             this.currentColor = this.idleColor
             this.flickerCount = 0
-            this.flickerInterval = 200
+            this.flickerInterval = 0
             this.flickerTime = 0
             this.nextFlicker = 0
         }
@@ -138,15 +138,13 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
             this.currentColor = this.idleColor
         }
 
-        flicker(onFlickerEnd) {
-            this.flickerCount = 6
+        flicker(count, interval) {
+            console.log("count", count, "interval", interval)
+            this.flickerCount = count
             this.flickerTime = 0
-            this.nextFlicker = this.flickerInterval
+            this.nextFlicker = interval
+            this.flickerInterval = interval
             this.flickerStartColor = this.currentColor
-            setTimeout(() => {
-                onFlickerEnd()
-            }, this.flickerCount * this.flickerInterval)
-
         }
 
         reveal() {
@@ -463,37 +461,26 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
             let col = categoryToColumn(category)
             board.unsetColumnHighlight(col)
         },
-        flickerAnswer: function (category, amount, onFlickerEnd) {
+        flickerAnswer: function (category, amount, flickerCount, flickerInterval) {
             let col = categoryToColumn(category)
             let row = answerToRow(col, amount)
-            board.tiles[col][row].flicker(() => {
-                onFlickerEnd(col, row)
-            })
+            board.tiles[col][row].flicker(flickerCount, flickerInterval)
         },
-        // unrevealAnswer: function (category, amount) {
-        //     let col = categoryToColumn(category)
-        //     let row = answerToRow(col, amount)
-        //     board.tiles[col][row].unreveal()
-        // },
         markAnswered: function (category, amount) {
             let col = categoryToColumn(category)
             let row = answerToRow(col, amount)
             board.tiles[col][row].markAnswered()
+        },
+        revealAnswer: function (category, amount) {
+            let col = categoryToColumn(category)
+            let row = answerToRow(col, amount)
+            board.tiles[col][row].reveal()
         },
         setColumnHighlight: function (col) {
             board.setColumnHighlight(col)
         },
         unsetColumnHighlight: function (col) {
             board.unsetColumnHighlight(col)
-        },
-        flickerTile: function (col, row) {
-            board.tiles[col][row].flicker()
-        },
-        revealAnswer: function (col, row) {
-            board.tiles[col][row].reveal()
-        },
-        isAnswerUsed: function (col, row) {
-            return board.tiles[col][row].state === "USED"
         },
         startNextRound: function () {
             board.startNextRound()
