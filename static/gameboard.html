@@ -59,7 +59,7 @@
             gameBoardCanvas.width = gameBoardDiv.offsetWidth
             gameBoardCanvas.height = gameBoardDiv.offsetHeight
 
-            gameBoard = NewGameBoard(payload.gameBoard, gameBoardCanvas, onGameBoardTileStateChange)
+            gameBoard = NewGameBoard(payload.gameBoard, gameBoardCanvas)
         }
 
 
@@ -89,15 +89,7 @@
 
 
         function handleQuestionAnswered(payload) {
-
-        }
-
-
-        function onGameBoardTileStateChange(round, category, amount) {
-            service.markAnswerUsed(round, category, amount)
-                .then(() => {
-                    console.log("Mark tile used", round, category, amount)
-                })
+            gameBoard.markAnswered(payload.category, payload.amount)
         }
 
 

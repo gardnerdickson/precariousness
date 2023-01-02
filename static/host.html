@@ -55,7 +55,6 @@
 
         function handleWaitingForPlayer(payload) {
             console.log("START GAME!!!", payload)
-            hideScreens()
             const el = d.querySelector("#waiting-for-player")
             el.style.display = ""
             el.innerHTML = waitingForPlayerTemplate.replace("${PLAYER_NAME}", payload.playerName)
@@ -70,7 +69,9 @@
             answerElement.innerHTML = answerTemplate.replace("${ANSWER_TEXT}", payload.answerText)
             d.querySelector("#question-buttons").style.display = ""
             d.querySelector("#question-correct-button").dataset.amount = payload.amount
+            d.querySelector("#question-correct-button").dataset.category = payload.category
             d.querySelector("#question-incorrect-button").dataset.amount = payload.amount
+            d.querySelector("#question-incorrect-button").dataset.category = payload.category
         }
 
 
@@ -108,14 +109,16 @@
         function questionCorrect(buttonElement) {
             const playerName = buttonElement.dataset.playerName
             const amount = buttonElement.dataset.amount
-            socketMessageRouter.sendMessage("QUESTION_CORRECT", {"playerName": playerName, "amount": amount})
+            const category = buttonElement.dataset.category
+            socketMessageRouter.sendMessage("QUESTION_CORRECT", {"playerName": playerName, "amount": amount, "category": category})
         }
 
 
         function questionIncorrect(buttonElement) {
             const playerName = buttonElement.dataset.playerName
             const amount = buttonElement.dataset.amount
-            socketMessageRouter.sendMessage("QUESTION_INCORRECT", {"playerName": playerName, "amount": amount})
+            const category = buttonElement.dataset.category
+            socketMessageRouter.sendMessage("QUESTION_INCORRECT", {"playerName": playerName, "amount": amount, "category": category})
         }
 
 

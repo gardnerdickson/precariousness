@@ -1,3 +1,4 @@
+import json
 import logging
 
 from typing import Type, Union, List
@@ -37,6 +38,7 @@ class SocketHandler:
     async def handle_operation(self, websocket: WebSocket, **kwargs):
         try:
             data = await websocket.receive_json()
+            logger.debug(f"Processing message: {json.dumps(data)}")
             message = SocketMessage.parse_obj(data)
             if message.operation not in self.operation_handlers:
                 raise InvalidOperation(message.operation)

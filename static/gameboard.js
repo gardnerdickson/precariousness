@@ -1,4 +1,4 @@
-const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) {
+const NewGameBoard = function (gameBoardData, canvasElement) {
     let GAMEBOARD_STOP_GAME_LOOP = false
     let board = null
     const TILE_IDLE_COLOR = "#eb8934"
@@ -106,7 +106,6 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
             idleColor,
             highlightColor,
             flickerColor,
-            onTileStateChange
         ) {
             super(position, dimensions)
 
@@ -123,7 +122,6 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
             this.idleColor = idleColor
             this.highlightColor = highlightColor
             this.flickerColor = flickerColor
-            this.onTileStateChange = onTileStateChange
 
             this.currentColor = this.idleColor
             this.flickerCount = 0
@@ -154,13 +152,11 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
         reveal() {
             this.state = "ANSWER"
             this.drawOrder = 5
-            this.onTileStateChange(0, this.category, this.label)
         }
 
-        markUsed() {
-            this.state = "USED"
+        markAnswered() {
+            this.state = "ANSWERED"
             this.drawOrder = 1
-            this.onTileStateChange(0, this.category, this.label)
         }
 
         update(elapsedTime) {
@@ -185,8 +181,8 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
                 this.drawDollarLabel(ctx, canvasElement, scaleFactor)
             } else if (this.state === "ANSWER") {
                 this.drawAnswer(ctx, canvasElement, scaleFactor)
-            } else { // ths.drawMode === "USED"
-                this.drawUsed(ctx, canvasElement, scaleFactor)
+            } else {
+                this.drawAnswered(ctx, canvasElement, scaleFactor)
             }
         }
 
@@ -295,7 +291,7 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
             ctx.setTransform(1, 0, 0, 1, 0, 0)
         }
 
-        drawUsed(ctx, canvasElement, scaleFactor) {
+        drawAnswered(ctx, canvasElement, scaleFactor) {
             ctx.fillStyle = this.currentColor
             ctx.fillRect(
                 this.position.x,
@@ -362,7 +358,6 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
                         TILE_IDLE_COLOR,
                         TILE_HIGHLIGHT_COLOR,
                         TILE_FLICKER_COLOR,
-                        onTileStateChange
                     )
                     this.tiles[col][row] = tile
                     gameEntities.push(tile)
@@ -468,12 +463,22 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
             let col = categoryToColumn(category)
             board.unsetColumnHighlight(col)
         },
-        flickerAnswer: function (category, answer, onFlickerEnd) {
+        flickerAnswer: function (category, amount, onFlickerEnd) {
             let col = categoryToColumn(category)
-            let row = answerToRow(col, answer)
+            let row = answerToRow(col, amount)
             board.tiles[col][row].flicker(() => {
                 onFlickerEnd(col, row)
             })
+        },
+        // unrevealAnswer: function (category, amount) {
+        //     let col = categoryToColumn(category)
+        //     let row = answerToRow(col, amount)
+        //     board.tiles[col][row].unreveal()
+        // },
+        markAnswered: function (category, amount) {
+            let col = categoryToColumn(category)
+            let row = answerToRow(col, amount)
+            board.tiles[col][row].markAnswered()
         },
         setColumnHighlight: function (col) {
             board.setColumnHighlight(col)
@@ -486,9 +491,6 @@ const NewGameBoard = function (gameBoardData, canvasElement, onTileStateChange) 
         },
         revealAnswer: function (col, row) {
             board.tiles[col][row].reveal()
-        },
-        markAnswerUsed: function (col, row) {
-            board.tiles[col][row].markUsed()
         },
         isAnswerUsed: function (col, row) {
             return board.tiles[col][row].state === "USED"

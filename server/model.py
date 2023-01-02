@@ -13,7 +13,7 @@ class SocketMessage(BaseModel):
     payload: Union[List[Any], Dict[str, Any]] = {}
 
 
-class Tile(PrecariousnessBaseModel):
+class Answer(PrecariousnessBaseModel):
     category: str
     amount: Optional[str]
 
@@ -26,7 +26,7 @@ Game state models
 class Question(PrecariousnessBaseModel):
     answer: str
     question: str
-    used: bool = True
+    answered: bool = True
 
 
 class Category(PrecariousnessBaseModel):
@@ -65,21 +65,23 @@ class StartGameMessage(PrecariousnessBaseModel):
     pass
 
 
-class SelectQuestionMessage(Tile):
+class SelectQuestionMessage(Answer):
     pass
 
 
-class DeselectQuestionMessage(Tile):
+class DeselectQuestionMessage(Answer):
     pass
 
 
-class QuestionCorrectMessage(PrecariousnessBaseModel):
+class QuestionCorrectMessage(Answer):
     player_name: str = Field(alias="playerName")
+    category: str
     amount: int
 
 
-class QuestionIncorrectMessage(PrecariousnessBaseModel):
+class QuestionIncorrectMessage(Answer):
     player_name: str = Field(alias="playerName")
+    category: str
     amount: int
 
 
@@ -105,15 +107,15 @@ class PlayerTurnStartMessage(PrecariousnessBaseModel):
     pass
 
 
-class CategorySelectedMessage(Tile):
+class CategorySelectedMessage(Answer):
     pass
 
 
-class QuestionSelectedMessage(Tile):
+class QuestionSelectedMessage(Answer):
     answer_text: str = Field(alias="answerText")
 
 
-class QuestionAnswered(PrecariousnessBaseModel):
+class QuestionAnswered(Answer):
     pass
 
 
