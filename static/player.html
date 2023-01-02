@@ -9,6 +9,8 @@
             "<li onclick=\"categoryClicked('${CATEGORY}')\" class=\"question-button\"><p>${CATEGORY}</p></li>"
         const questionButtonTemplate =
             "<li onclick=\"questionClicked('${CATEGORY}', '${QUESTION_AMOUNT}')\" class=\"question-button\"><p>${QUESTION_AMOUNT}</p></li>"
+        const questionButtonDisabledTemplate =
+            "<li class=\"question-button button-disabled\"><p>${QUESTION_AMOUNT}</p></li>"
         const questionBackButtonTemplate =
             "<li onclick=\"backClicked('${CATEGORY}')\" class=\"back-button\"><p>Back</p></li>"
 
@@ -71,10 +73,15 @@
                 const category = gameState.rounds[gameState.currentRound].categories.find((value) => {
                     return value.name === categoryName
                 })
-                for (let amount of Object.keys(category.questions)) {
-                    chooseQuestionContainer.innerHTML += questionButtonTemplate
-                        .replaceAll("${QUESTION_AMOUNT}", amount)
-                        .replaceAll("${CATEGORY}", categoryName)
+                for (let [amount, question] of Object.entries(category.questions)) {
+                    if (question.answered) {
+                        chooseQuestionContainer.innerHTML += questionButtonDisabledTemplate
+                            .replaceAll("${QUESTION_AMOUNT}", amount)
+                    } else {
+                        chooseQuestionContainer.innerHTML += questionButtonTemplate
+                            .replaceAll("${QUESTION_AMOUNT}", amount)
+                            .replaceAll("${CATEGORY}", categoryName)
+                    }
                 }
                 chooseQuestionContainer.innerHTML += questionBackButtonTemplate.replaceAll("${CATEGORY}", categoryName)
                 chooseQuestionContainer.style.display = ""

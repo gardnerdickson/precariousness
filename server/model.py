@@ -26,7 +26,7 @@ Game state models
 class Question(PrecariousnessBaseModel):
     answer: str
     question: str
-    answered: bool = True
+    answered: bool = False
 
 
 class Category(PrecariousnessBaseModel):

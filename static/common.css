@@ -18,6 +18,10 @@ body {
     flex-direction: column;
 }
 
+.question-button.button-disabled {
+    background-color: #ffb778;
+}
+
 .back-button {
     background-color: #fff;
     border-radius: 15px;
