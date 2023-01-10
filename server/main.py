@@ -4,7 +4,6 @@ import os
 import random
 import sys
 import uuid
-from collections import OrderedDict
 from json import JSONDecodeError
 from typing import Dict, Optional
 
@@ -15,9 +14,9 @@ from pydantic import ValidationError
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
-from server.log import configure_logging
 from server.exceptions import InvalidPlayerId, InvalidOperation
 from server.handler import SocketHandler
+from server.log import configure_logging
 from server.model import (
     Player,
     PlayerBuzzMessage,
@@ -187,15 +186,10 @@ async def handle_player_init(inbound_message: PlayerInitMessage, player_id: str)
 
 @socket_handler.operation("START_GAME", StartGameMessage)
 async def handle_start_game(_: StartGameMessage):
-    # Shuffle turn order
-    global players
-    # player_items = list(players.items())
-    # random.shuffle(player_items)
-    # players = OrderedDict(player_items)
-
     all_players_in_message = AllPlayersIn()
     await socket_handler.send_message("ALL_PLAYERS_IN", all_players_in_message, game_board_socket)
-    await _next_turn()
+    random_player = list(players.values())[random.randint(0, len(players)) - 1]
+    await _next_turn(random_player.id)
 
 
 @socket_handler.operation("SELECT_CATEGORY", SelectQuestionMessage)
@@ -260,7 +254,7 @@ async def handle_question_correct(question_correct_message: QuestionCorrectMessa
 
     if len(remaining_answers) == 0:
         await _next_round()
-    await _next_turn()
+    await _next_turn(player.id)
 
 
 @socket_handler.operation("QUESTION_INCORRECT", QuestionIncorrectMessage)
@@ -287,14 +281,14 @@ async def handle_question_incorrect(question_incorrect_message: QuestionIncorrec
 
     if len(remaining_answers) == 0:
         await _next_round()
-    await _next_turn()
+
+    sorted_by_amount = sorted(players.values(), key=lambda p: p.score)
+    player_with_least_amount = sorted_by_amount[0].id
+    await _next_turn(player_with_least_amount)
 
 
-async def _next_turn():
-    global current_player_idx
-    player_sequence = list(players.values())
-    current_player_idx = (current_player_idx + 1) % len(players)
-    current_player = player_sequence[current_player_idx]
+async def _next_turn(player_id: str):
+    current_player = players[player_id]
     waiting_for_player_message = WaitingForPlayerMessage(player_name=current_player.name)
     await socket_handler.send_message("WAITING_FOR_PLAYER_CHOICE", waiting_for_player_message, [host_socket, game_board_socket])
     for player_id, socket in player_sockets.items():
