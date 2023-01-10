@@ -305,10 +305,8 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
         constructor(boardData, position, dimensions) {
             super(position, dimensions)
             this.gameBoard = boardData
-            this.currentRound = 0
-        }
+            this.currentRound = boardData.currentRound
 
-        startNextRound() {
             const round = this.gameBoard.rounds[this.currentRound]
             const numCols = round.categories.length
             const numRows = Object.keys(round.categories[0].questions).length + 1
@@ -364,6 +362,7 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
                 }
                 xOffset += tileWidth
                 col += 1
+
             }
         }
 
@@ -427,7 +426,6 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
                     new Dimensions(canvasElement.width, canvasElement.height)
                 )
                 gameEntities.push(board)
-                board.startNextRound()
                 main(totalSimTime, game)
             })
         })
@@ -481,9 +479,6 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
         },
         unsetColumnHighlight: function (col) {
             board.unsetColumnHighlight(col)
-        },
-        startNextRound: function () {
-            board.startNextRound()
         },
         currentRound: function () {
             return board.currentRound

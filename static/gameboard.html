@@ -31,12 +31,13 @@
             console.log("Opening gameboard socket")
             socketMessageRouter = new SocketMessageRouter(ws_url)
             socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
-            socketMessageRouter.addRoute("LOAD_GAME_BOARD", handleStartGame)
+            socketMessageRouter.addRoute("ALL_PLAYERS_IN", handleAllPlayersIn)
             socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
             socketMessageRouter.addRoute("CATEGORY_SELECTED", handleCategorySelected)
             socketMessageRouter.addRoute("CATEGORY_DESELECTED", handleCategoryDeselected)
             socketMessageRouter.addRoute("QUESTION_SELECTED", handleQuestionSelected)
             socketMessageRouter.addRoute("QUESTION_ANSWERED", handleQuestionAnswered)
+            socketMessageRouter.addRoute("NEW_ROUND", handleNewRound)
         }
 
 
@@ -50,19 +51,21 @@
         }
 
 
-        function handleStartGame(payload) {
+        function handleAllPlayersIn(payload) {
             console.log("START GAME!!!", payload)
-            hideScreens()
-            const gameBoardDiv = d.querySelector("#gameboard")
-            gameBoardDiv.style.display = ""
-            gameBoardDiv.style.width = "100%"
-            gameBoardDiv.style.height = "100%"
-            gameBoardDiv.style.margin = "0"
-            const gameBoardCanvas = d.querySelector("#gameboard-canvas")
-            gameBoardCanvas.width = gameBoardDiv.offsetWidth
-            gameBoardCanvas.height = gameBoardDiv.offsetHeight
+            service.getGameBoardState().then((gameBoardState) => {
+                hideScreens()
+                const gameBoardDiv = d.querySelector("#gameboard")
+                gameBoardDiv.style.display = ""
+                gameBoardDiv.style.width = "100%"
+                gameBoardDiv.style.height = "100%"
+                gameBoardDiv.style.margin = "0"
+                const gameBoardCanvas = d.querySelector("#gameboard-canvas")
+                gameBoardCanvas.width = gameBoardDiv.offsetWidth
+                gameBoardCanvas.height = gameBoardDiv.offsetHeight
 
-            gameBoard = NewGameBoard(payload.gameBoard, gameBoardCanvas)
+                gameBoard = NewGameBoard(gameBoardState, gameBoardCanvas)
+            })
         }
 
 
@@ -93,6 +96,23 @@
 
         function handleQuestionAnswered(payload) {
             gameBoard.markAnswered(payload.category, payload.amount)
+        }
+
+
+        function handleNewRound(payload) {
+            service.getGameBoardState().then((gameBoardState) => {
+                hideScreens()
+                const gameBoardDiv = d.querySelector("#gameboard")
+                gameBoardDiv.style.display = ""
+                gameBoardDiv.style.width = "100%"
+                gameBoardDiv.style.height = "100%"
+                gameBoardDiv.style.margin = "0"
+                const gameBoardCanvas = d.querySelector("#gameboard-canvas")
+                gameBoardCanvas.width = gameBoardDiv.offsetWidth
+                gameBoardCanvas.height = gameBoardDiv.offsetHeight
+
+                gameBoard = NewGameBoard(gameBoardState, gameBoardCanvas)
+            })
         }
 
 

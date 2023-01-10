@@ -60,8 +60,8 @@ const service = {
                 return response.json()
             })
     },
-    getGameBoard: function() {
-        return fetch("/get_gameboard", {method: "POST"})
+    getGameBoardState: function() {
+        return fetch("/get_game_board_state", {method: "POST"})
             .then((response) => {
                 if (!response.ok) {
                     throw new Error("Failed to get game board")

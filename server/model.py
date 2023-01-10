@@ -119,8 +119,16 @@ class QuestionAnswered(Answer):
     pass
 
 
-class LoadGameBoardMessage(PrecariousnessBaseModel):
-    game_board: GameBoardState = Field(alias="gameBoard")
+class AllPlayersIn(PrecariousnessBaseModel):
+    pass
+
+
+class NewRoundMessage(PrecariousnessBaseModel):
+    pass
+
+
+class GameOverMessage(PrecariousnessBaseModel):
+    pass
 
 
 class Player(PrecariousnessBaseModel):

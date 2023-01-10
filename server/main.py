@@ -27,7 +27,7 @@ from server.model import (
     StartGameMessage,
     WaitingForPlayerMessage,
     GameBoardState,
-    LoadGameBoardMessage,
+    AllPlayersIn,
     Answer,
     SelectQuestionMessage,
     QuestionSelectedMessage,
@@ -36,6 +36,8 @@ from server.model import (
     QuestionCorrectMessage,
     QuestionIncorrectMessage,
     QuestionAnswered,
+    NewRoundMessage,
+    GameOverMessage,
 )
 
 load_dotenv()
@@ -54,7 +56,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 player_sockets: Dict[str, Optional[WebSocket]] = {}
 host_socket: Optional[WebSocket] = None
-gameboard_socket: Optional[WebSocket] = None
+game_board_socket: Optional[WebSocket] = None
 
 players: Dict[str, Player] = {}
 current_player_idx = 0
@@ -96,8 +98,8 @@ async def register_new_player():
     return {"playerId": new_player_id}
 
 
-@app.post("/get_gameboard")
-async def get_gameboard():
+@app.post("/get_game_board_state")
+async def get_game_board_state():
     return game_board_state
 
 
@@ -107,7 +109,7 @@ async def mark_answer_used(tile: Answer):
     category = next((c for c in categories if c.name == tile.category), None)
     if not category:
         raise KeyError(f"Category does not exist: {tile.category}")
-    category.questions[tile.amount].used = True
+    category.questions[tile.amount].answered = True
     logger.info(f"Marked {game_board_state.current_round} -> {tile.category} -> {tile.amount} as used")
 
 
@@ -139,10 +141,10 @@ async def init_host_socket(websocket: WebSocket):
 @app.websocket("/gameboard_socket")
 async def init_gameboard_socket(websocket: WebSocket):
     await websocket.accept()
-    global gameboard_socket
-    gameboard_socket = websocket
+    global game_board_socket
+    game_board_socket = websocket
     while True:
-        await socket_handler.handle_operation(gameboard_socket)
+        await socket_handler.handle_operation(game_board_socket)
 
 
 @socket_handler.error(InvalidOperation)
@@ -180,31 +182,31 @@ async def handle_player_init(inbound_message: PlayerInitMessage, player_id: str)
 
     outbound_message = PlayerJoinedMessage(player_name=inbound_message.player_name, player_score=0)
     await socket_handler.send_message("PLAYER_JOINED", outbound_message, host_socket)
-    await socket_handler.send_message("PLAYER_JOINED", outbound_message, gameboard_socket)
+    await socket_handler.send_message("PLAYER_JOINED", outbound_message, game_board_socket)
 
 
 @socket_handler.operation("START_GAME", StartGameMessage)
 async def handle_start_game(_: StartGameMessage):
     # Shuffle turn order
     global players
-    player_items = list(players.items())
-    random.shuffle(player_items)
-    players = OrderedDict(player_items)
+    # player_items = list(players.items())
+    # random.shuffle(player_items)
+    # players = OrderedDict(player_items)
 
-    load_game_board_message = LoadGameBoardMessage(game_board=game_board_state)
-    await socket_handler.send_message("LOAD_GAME_BOARD", load_game_board_message, gameboard_socket)
+    all_players_in_message = AllPlayersIn()
+    await socket_handler.send_message("ALL_PLAYERS_IN", all_players_in_message, game_board_socket)
     await _next_turn()
 
 
 @socket_handler.operation("SELECT_CATEGORY", SelectQuestionMessage)
 async def handle_category_selected(select_category_message: SelectQuestionMessage, player_id: str):
     category_selected_message = CategorySelectedMessage(category=select_category_message.category)
-    await socket_handler.send_message("CATEGORY_SELECTED", category_selected_message, [host_socket, gameboard_socket])
+    await socket_handler.send_message("CATEGORY_SELECTED", category_selected_message, [host_socket, game_board_socket])
 
 
 @socket_handler.operation("DESELECT_CATEGORY", DeselectQuestionMessage)
 async def handle_deselect_category(deselect_category_message: DeselectQuestionMessage, player_id: str):
-    await socket_handler.send_message("CATEGORY_DESELECTED", deselect_category_message, [host_socket, gameboard_socket])
+    await socket_handler.send_message("CATEGORY_DESELECTED", deselect_category_message, [host_socket, game_board_socket])
 
 
 @socket_handler.operation("SELECT_QUESTION", SelectQuestionMessage)
@@ -215,7 +217,7 @@ async def handle_question_selected(select_question_message: SelectQuestionMessag
         raise KeyError(f"Category does not exist: {select_question_message.category}")
     answer_text = category.questions[select_question_message.amount].answer
     question_selected_message = QuestionSelectedMessage(answer_text=answer_text, **select_question_message.dict())
-    await socket_handler.send_message("QUESTION_SELECTED", question_selected_message, [host_socket, gameboard_socket, *player_sockets.values()])
+    await socket_handler.send_message("QUESTION_SELECTED", question_selected_message, [host_socket, game_board_socket, *player_sockets.values()])
 
 
 player_buzzed = None
@@ -248,8 +250,16 @@ async def handle_question_correct(question_correct_message: QuestionCorrectMessa
     category.questions[str(question_correct_message.amount)].answered = True
 
     question_answered_message = QuestionAnswered(category=question_correct_message.category, amount=question_correct_message.amount)
-    await socket_handler.send_message("QUESTION_ANSWERED", question_answered_message, [host_socket, gameboard_socket, *player_sockets.values()])
-    await socket_handler.send_message("PLAYER_STATE_CHANGED", list(players.values()), [host_socket, gameboard_socket, *player_sockets.values()])
+    await socket_handler.send_message("QUESTION_ANSWERED", question_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
+    await socket_handler.send_message("PLAYER_STATE_CHANGED", list(players.values()), [host_socket, game_board_socket, *player_sockets.values()])
+
+    remaining_answers = []
+    for category in categories:
+        remaining_answers.extend([a for a in category.questions.values() if not a.answered])
+    logger.debug(f"Number of remaining answers: {len(remaining_answers)}")
+
+    if len(remaining_answers) == 0:
+        await _next_round()
     await _next_turn()
 
 
@@ -267,8 +277,16 @@ async def handle_question_incorrect(question_incorrect_message: QuestionIncorrec
     category.questions[str(question_incorrect_message.amount)].answered = True
 
     question_answered_message = QuestionAnswered(category=question_incorrect_message.category, amount=question_incorrect_message.amount)
-    await socket_handler.send_message("QUESTION_ANSWERED", question_answered_message, [host_socket, gameboard_socket, *player_sockets.values()])
-    await socket_handler.send_message("PLAYER_STATE_CHANGED", list(players.values()), [host_socket, gameboard_socket, *player_sockets.values()])
+    await socket_handler.send_message("QUESTION_ANSWERED", question_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
+    await socket_handler.send_message("PLAYER_STATE_CHANGED", list(players.values()), [host_socket, game_board_socket, *player_sockets.values()])
+
+    remaining_answers = []
+    for category in categories:
+        remaining_answers.extend([a for a in category.questions.values() if not a.answered])
+    logger.debug(f"Number of remaining answers: {len(remaining_answers)}")
+
+    if len(remaining_answers) == 0:
+        await _next_round()
     await _next_turn()
 
 
@@ -278,9 +296,20 @@ async def _next_turn():
     current_player_idx = (current_player_idx + 1) % len(players)
     current_player = player_sequence[current_player_idx]
     waiting_for_player_message = WaitingForPlayerMessage(player_name=current_player.name)
-    await socket_handler.send_message("WAITING_FOR_PLAYER_CHOICE", waiting_for_player_message, [host_socket, gameboard_socket])
+    await socket_handler.send_message("WAITING_FOR_PLAYER_CHOICE", waiting_for_player_message, [host_socket, game_board_socket])
     for player_id, socket in player_sockets.items():
         if player_id == current_player.id:
             await socket_handler.send_message("PLAYER_TURN_START", PlayerTurnStartMessage(), socket)
         else:
             await socket_handler.send_message("WAITING_FOR_PLAYER_CHOICE", waiting_for_player_message, socket)
+
+
+async def _next_round():
+    game_board_state.current_round += 1
+
+    if game_board_state.current_round >= len(game_board_state.rounds):
+        logger.debug("Game over")
+        await socket_handler.send_message("GAME_OVER", GameOverMessage(), [host_socket, game_board_socket, *player_sockets.values()])
+    else:
+        logger.debug(f"New round: {game_board_state.current_round}")
+        await socket_handler.send_message("NEW_ROUND", NewRoundMessage(), game_board_socket)
