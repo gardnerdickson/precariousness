@@ -1,4 +1,3 @@
-
 function hideScreens() {
     d.querySelectorAll(".hideable").forEach(function (el) {
         el.style.display = "none"
@@ -41,7 +40,7 @@ class SocketMessageRouter {
             }
         }
     }
-    
+
     sendMessage(operation, obj) {
         console.debug("Sending message:", obj)
         const message = JSON.stringify({"operation": operation, "payload": obj})
@@ -51,7 +50,7 @@ class SocketMessageRouter {
 
 
 const service = {
-    newPlayer: function() {
+    newPlayer: function () {
         return fetch("/new_player", {method: "POST"})
             .then((response) => {
                 if (!response.ok) {
@@ -60,7 +59,7 @@ const service = {
                 return response.json()
             })
     },
-    getGameBoardState: function() {
+    getGameBoardState: function () {
         return fetch("/get_game_board_state", {method: "POST"})
             .then((response) => {
                 if (!response.ok) {
@@ -69,7 +68,16 @@ const service = {
                 return response.json()
             })
     },
-    markAnswerUsed: function(round, category, amount) {
+    getPlayersState: function () {
+        return fetch("/get_players_state", {method: "POST"})
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error("Failed to get players state")
+                }
+                return response.json()
+            })
+    },
+    markAnswerUsed: function (round, category, amount) {
         const tile_request_body = {
             "category": category,
             "amount": amount

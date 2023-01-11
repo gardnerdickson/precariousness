@@ -31,12 +31,13 @@
             console.log("Opening gameboard socket")
             socketMessageRouter = new SocketMessageRouter(ws_url)
             socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
-            socketMessageRouter.addRoute("ALL_PLAYERS_IN", handleAllPlayersIn)
+            socketMessageRouter.addRoute("ALL_PLAYERS_IN", handleNewRound)
             socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
             socketMessageRouter.addRoute("CATEGORY_SELECTED", handleCategorySelected)
             socketMessageRouter.addRoute("CATEGORY_DESELECTED", handleCategoryDeselected)
             socketMessageRouter.addRoute("QUESTION_SELECTED", handleQuestionSelected)
             socketMessageRouter.addRoute("QUESTION_ANSWERED", handleQuestionAnswered)
+            socketMessageRouter.addRoute("PLAYER_STATE_CHANGED", handlePlayerStateChanged)
             socketMessageRouter.addRoute("NEW_ROUND", handleNewRound)
         }
 
@@ -48,24 +49,6 @@
                 .replace("${PLAYER_SCORE}", payload.playerScore)
 
             playerList.innerHTML += playerInfo
-        }
-
-
-        function handleAllPlayersIn(payload) {
-            console.log("START GAME!!!", payload)
-            service.getGameBoardState().then((gameBoardState) => {
-                hideScreens()
-                const gameBoardDiv = d.querySelector("#gameboard")
-                gameBoardDiv.style.display = ""
-                gameBoardDiv.style.width = "100%"
-                gameBoardDiv.style.height = "100%"
-                gameBoardDiv.style.margin = "0"
-                const gameBoardCanvas = d.querySelector("#gameboard-canvas")
-                gameBoardCanvas.width = gameBoardDiv.offsetWidth
-                gameBoardCanvas.height = gameBoardDiv.offsetHeight
-
-                gameBoard = NewGameBoard(gameBoardState, gameBoardCanvas)
-            })
         }
 
 
@@ -99,20 +82,29 @@
         }
 
 
-        function handleNewRound(payload) {
-            service.getGameBoardState().then((gameBoardState) => {
-                hideScreens()
-                const gameBoardDiv = d.querySelector("#gameboard")
-                gameBoardDiv.style.display = ""
-                gameBoardDiv.style.width = "100%"
-                gameBoardDiv.style.height = "100%"
-                gameBoardDiv.style.margin = "0"
-                const gameBoardCanvas = d.querySelector("#gameboard-canvas")
-                gameBoardCanvas.width = gameBoardDiv.offsetWidth
-                gameBoardCanvas.height = gameBoardDiv.offsetHeight
+        function handleNewRound(_) {
+            Promise.all([service.getPlayersState(), service.getGameBoardState()])
+                .then((results) => {
+                    const [playersState, gameBoardState] = results
 
-                gameBoard = NewGameBoard(gameBoardState, gameBoardCanvas)
-            })
+                    hideScreens()
+
+                    const gameBoardDiv = d.querySelector("#gameboard")
+                    gameBoardDiv.style.display = ""
+                    gameBoardDiv.style.width = "100%"
+                    gameBoardDiv.style.height = "100%"
+                    gameBoardDiv.style.margin = "0"
+                    const gameBoardCanvas = d.querySelector("#gameboard-canvas")
+                    gameBoardCanvas.width = gameBoardDiv.offsetWidth
+                    gameBoardCanvas.height = gameBoardDiv.offsetHeight
+
+                    gameBoard = NewGameBoard(gameBoardState, playersState, gameBoardCanvas)
+                })
+        }
+
+
+        function handlePlayerStateChanged(playersState) {
+            gameBoard.updatePlayersState(playersState)
         }
 
 

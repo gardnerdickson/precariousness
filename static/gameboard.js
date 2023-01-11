@@ -1,12 +1,16 @@
-const NewGameBoard = function (gameBoardData, canvasElement) {
+const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
     let GAMEBOARD_STOP_GAME_LOOP = false
     let board = null
+    let statusBar = null
     const TILE_IDLE_COLOR = "#eb8934"
     const TILE_HIGHLIGHT_COLOR = "#ffb778"
     const TILE_FLICKER_COLOR = "#ffffff"
     const TILE_LABEL_COLOR = "#a8d7e0"
     const TILE_FONT = "bold 72px Lora"
+    const TILE_BORDER_COLOR = "#ffffff"
+    const TILE_BORDER_SIZE_PERCENTAGE = 0.0001
     const CATEGORY_FONT = "bold 40px Lora"
+    const STATUS_FONT = "bold 50px Lora"
     const REFERENCE_RESOLUTION_WIDTH = 1920
     const REFERENCE_RESOLUTION_HEIGHT = 1080
 
@@ -61,6 +65,10 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
         constructor(width, height) {
             this.width = width
             this.height = height
+        }
+
+        area() {
+            return this.width * this.height
         }
     }
 
@@ -174,6 +182,29 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
             }
         }
 
+        _drawBorder(ctx) {
+            ctx.fillStyle = TILE_BORDER_COLOR
+            ctx.fillRect(
+                this.position.x,
+                this.position.y,
+                this.dimensions.width,
+                this.dimensions.height
+            )
+        }
+
+        _drawFill(ctx) {
+            ctx.fillStyle = this.currentColor
+
+            const borderSize = this.dimensions.area() * TILE_BORDER_SIZE_PERCENTAGE
+
+            const width = this.dimensions.width - borderSize
+            const height = this.dimensions.height - borderSize
+            const xPos = this.position.x + (borderSize / 2)
+            const yPos = this.position.y + (borderSize / 2)
+
+            ctx.fillRect(xPos, yPos, width, height)
+        }
+
         draw(ctx, canvasElement, scaleFactor) {
             if (this.state === "DOLLAR_AMOUNT") {
                 this.drawDollarLabel(ctx, canvasElement, scaleFactor)
@@ -185,13 +216,8 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
         }
 
         drawDollarLabel(ctx, _, scaleFactor) {
-            ctx.fillStyle = this.currentColor
-            ctx.fillRect(
-                this.position.x,
-                this.position.y,
-                this.dimensions.width,
-                this.dimensions.height
-            )
+            this._drawBorder(ctx)
+            this._drawFill(ctx)
 
             ctx.scale(scaleFactor, scaleFactor)
 
@@ -223,19 +249,15 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
             this.dimensions.width = canvasElement.width
             this.dimensions.height = canvasElement.height
 
-            ctx.fillStyle = this.currentColor
-            ctx.fillRect(
-                this.position.x,
-                this.position.y,
-                this.dimensions.width,
-                this.dimensions.height
-            )
+            this._drawBorder(ctx)
+            this._drawFill(ctx)
 
             ctx.scale(scaleFactor, scaleFactor)
 
             ctx.textAlign = "center"
             ctx.textBaseline = "middle"
-            ctx.font = "bold 120px " + this.labelFont
+            // ctx.font = "bold 120px " + this.labelFont
+            ctx.font = this.labelFont
 
             const maxWidth = this.dimensions.width * 0.95
             const words = this.answer.split(" ")
@@ -290,28 +312,28 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
         }
 
         drawAnswered(ctx, canvasElement, scaleFactor) {
-            ctx.fillStyle = this.currentColor
-            ctx.fillRect(
-                this.position.x,
-                this.position.y,
-                this.dimensions.width,
-                this.dimensions.height
-            )
+            this._drawBorder(ctx)
+            this._drawFill(ctx)
         }
     }
 
 
     class Board extends Entity {
-        constructor(boardData, position, dimensions) {
-            super(position, dimensions)
+        constructor(boardData, canvasElement, widthPercentage, heightPercentage) {
+            super(
+                new Position(0, 0),
+                new Dimensions(canvasElement.width, canvasElement.height * heightPercentage)
+            )
             this.gameBoard = boardData
             this.currentRound = boardData.currentRound
+            this.widthPercentage = widthPercentage
+            this.heightPercentage = heightPercentage
 
             const round = this.gameBoard.rounds[this.currentRound]
             const numCols = round.categories.length
             const numRows = Object.keys(round.categories[0].questions).length + 1
-            const tileWidth = this.dimensions.width / numCols
-            const tileHeight = this.dimensions.height / numRows
+            const tileWidth = (canvasElement.width * this.widthPercentage) / numCols
+            const tileHeight = (canvasElement.height * this.heightPercentage) / numRows
 
             this.tiles = Array.from(Array(numCols), () => new Array(numRows));
 
@@ -379,8 +401,8 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
         }
 
         update(elapsedTime, canvasElement) {
-            this.dimensions.width = canvasElement.width
-            this.dimensions.height = canvasElement.height
+            this.dimensions.width = canvasElement.width * this.widthPercentage
+            this.dimensions.height = canvasElement.height * this.heightPercentage
 
             let xOffset = 0
             for (let col in this.tiles) {
@@ -404,6 +426,62 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
     }
 
 
+    class StatusBar extends Entity {
+        constructor(playerState, canvasElement, widthPercentage, heightPercentage) {
+            super(
+                new Position(0, canvasElement.height - (canvasElement * heightPercentage)),
+                new Dimensions(canvasElement.width * widthPercentage, canvasElement.height * heightPercentage)
+            )
+            this.playerState = playerState
+            this.widthPercentage = widthPercentage
+            this.heightPercentage = heightPercentage
+            this.font = STATUS_FONT
+        }
+
+        update(elapsedTime, canvasElement) {
+            this.dimensions.width = canvasElement.width * this.widthPercentage
+            this.dimensions.height = canvasElement.height * this.heightPercentage
+            this.position.x = 0
+            this.position.y = canvasElement.height - (canvasElement.height * this.heightPercentage)
+        }
+
+        draw(ctx, canvasElement, scaleFactor) {
+            ctx.fillStyle = "#000000"
+            ctx.fillRect(
+                this.position.x,
+                this.position.y,
+                this.dimensions.width,
+                this.dimensions.height
+            )
+
+            ctx.fillStyle = "#ffffff"
+            const borderSize = this.dimensions.area() * TILE_BORDER_SIZE_PERCENTAGE
+            const width = this.dimensions.width - borderSize
+            const height = this.dimensions.height - borderSize
+            const xPos = this.position.x + (borderSize / 2)
+            const yPos = this.position.y + (borderSize / 2)
+            ctx.fillRect(xPos, yPos, width, height)
+
+            ctx.scale(scaleFactor, scaleFactor)
+            ctx.textAlign = "center"
+            ctx.textBaseline = "middle"
+            ctx.font = this.font
+            ctx.fillStyle = "#000000"
+            const playerStatusWidth = this.dimensions.width / 3
+            let xOffset = playerStatusWidth / 2
+            for (let player of this.playerState) {
+                ctx.fillText(
+                    player.name + " - $" + player.score,
+                    (this.position.x + xOffset + (playerStatusWidth / 2) + 2) / scaleFactor,
+                    (this.position.y + (this.dimensions.height / 2) + 2) / scaleFactor
+                )
+                xOffset += playerStatusWidth
+            }
+            ctx.setTransform(1, 0, 0, 1, 0, 0)
+        }
+    }
+
+
     (function () {
         let game = null
 
@@ -420,12 +498,10 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
         game = new Game(canvasElement)
         game.init(window.performance.now(), () => {
             window.requestAnimationFrame((totalSimTime) => {
-                board = new Board(
-                    gameBoardData,
-                    new Position(0, 0),
-                    new Dimensions(canvasElement.width, canvasElement.height)
-                )
+                board = new Board(gameBoardData, canvasElement, 1, 0.90)
+                statusBar = new StatusBar(playersState, canvasElement, 1, 0.10)
                 gameEntities.push(board)
+                gameEntities.push(statusBar)
                 main(totalSimTime, game)
             })
         })
@@ -479,6 +555,9 @@ const NewGameBoard = function (gameBoardData, canvasElement) {
         },
         unsetColumnHighlight: function (col) {
             board.unsetColumnHighlight(col)
+        },
+        updatePlayersState: function (playersState) {
+            statusBar.playerState = playersState
         },
         currentRound: function () {
             return board.currentRound

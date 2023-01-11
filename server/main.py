@@ -102,6 +102,11 @@ async def get_game_board_state():
     return game_board_state
 
 
+@app.post("/get_players_state")
+async def get_players_state():
+    return list(players.values())
+
+
 @app.post("/mark_answer_used")
 async def mark_answer_used(tile: Answer):
     categories = game_board_state.rounds[game_board_state.current_round].categories

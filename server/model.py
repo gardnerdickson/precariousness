@@ -39,7 +39,7 @@ class Round(PrecariousnessBaseModel):
 
 
 class GameBoardState(PrecariousnessBaseModel):
-    rounds: List[Round]
+    rounds: List[Round] = Field(default_factory=list)
     current_round: int = Field(default=0, alias="currentRound")
 
 
