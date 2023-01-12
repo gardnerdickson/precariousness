@@ -5,7 +5,7 @@
     <script type="text/javascript">
 
         const waitingForPlayerTemplate = "<p>Waiting for ${PLAYER_NAME} to choose a tile</p>"
-        const answerTemplate = "<p>${ANSWER_TEXT}</p>"
+        const clueTemplate = "<p>${CLUE_TEXT}</p>"
         const playerSummaryTemplate = "<p>${PLAYER_NAME} - ${PLAYER_SCORE}</p>"
         const playerSummaryElementTemplate = "<li id=\"${PLAYER_NAME}-summary\" class=\"player-summary-item\">" +
             playerSummaryTemplate +
@@ -35,9 +35,9 @@
             socketMessageRouter = new SocketMessageRouter(ws_url)
             socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
             socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
-            socketMessageRouter.addRoute("QUESTION_SELECTED", handleQuestionSelected)
+            socketMessageRouter.addRoute("CLUE_SELECTED", handleClueSelected)
             socketMessageRouter.addRoute("PLAYER_BUZZED", handlePlayerBuzzed)
-            socketMessageRouter.addRoute("QUESTION_ANSWERED", handleQuestionAnswered)
+            socketMessageRouter.addRoute("CLUE_ANSWERED", handleClueAnswered)
             socketMessageRouter.addRoute("PLAYER_STATE_CHANGED", handlePlayerStateChange)
         }
 
@@ -61,17 +61,17 @@
         }
 
 
-        function handleQuestionSelected(payload) {
+        function handleClueSelected(payload) {
             d.querySelector("#main").style.display = ""
             d.querySelector("#waiting-for-player").style.display = "none"
-            const answerElement = d.querySelector("#answer")
-            answerElement.style.display = ""
-            answerElement.innerHTML = answerTemplate.replace("${ANSWER_TEXT}", payload.answerText)
-            d.querySelector("#question-buttons").style.display = ""
-            d.querySelector("#question-correct-button").dataset.amount = payload.amount
-            d.querySelector("#question-correct-button").dataset.category = payload.category
-            d.querySelector("#question-incorrect-button").dataset.amount = payload.amount
-            d.querySelector("#question-incorrect-button").dataset.category = payload.category
+            const clueElement = d.querySelector("#clue")
+            clueElement.style.display = ""
+            clueElement.innerHTML = clueTemplate.replace("${CLUE_TEXT}", payload.clueText)
+            d.querySelector("#response-buttons").style.display = ""
+            d.querySelector("#response-correct-button").dataset.amount = payload.amount
+            d.querySelector("#response-correct-button").dataset.category = payload.category
+            d.querySelector("#response-incorrect-button").dataset.amount = payload.amount
+            d.querySelector("#response-incorrect-button").dataset.category = payload.category
         }
 
 
@@ -79,14 +79,14 @@
             const playerName = payload.playerName
             const playerSummaryItem = d.querySelector("#" + playerName + "-summary")
             playerSummaryItem.classList.add("buzzed")
-            d.querySelector("#question-correct-button").dataset.playerName = playerName
-            d.querySelector("#question-incorrect-button").dataset.playerName = playerName
+            d.querySelector("#response-correct-button").dataset.playerName = playerName
+            d.querySelector("#response-incorrect-button").dataset.playerName = playerName
         }
 
 
-        function handleQuestionAnswered(payload) {
-            d.querySelector("#answer").innerHTML = ""
-            d.querySelector("#question-buttons").style.display = "none"
+        function handleClueAnswered(payload) {
+            d.querySelector("#clue").innerHTML = ""
+            d.querySelector("#response-buttons").style.display = "none"
             d.querySelectorAll(".player-summary-item").forEach((item) => {
                 item.classList.remove("buzzed")
             })
@@ -109,25 +109,25 @@
         }
 
 
-        function questionCorrect(buttonElement) {
+        function responseCorrect(buttonElement) {
             const playerName = buttonElement.dataset.playerName
             const amount = buttonElement.dataset.amount
             const category = buttonElement.dataset.category
             if ([playerName, amount, category].some(x => x === null || x === undefined)) {
                 return;
             }
-            socketMessageRouter.sendMessage("QUESTION_CORRECT", {"playerName": playerName, "amount": amount, "category": category})
+            socketMessageRouter.sendMessage("RESPONSE_CORRECT", {"playerName": playerName, "amount": amount, "category": category})
         }
 
 
-        function questionIncorrect(buttonElement) {
+        function responseIncorrect(buttonElement) {
             const playerName = buttonElement.dataset.playerName
             const amount = buttonElement.dataset.amount
             const category = buttonElement.dataset.category
             if ([playerName, amount, category].some(x => x === null || x === undefined)) {
                 return;
             }
-            socketMessageRouter.sendMessage("QUESTION_INCORRECT", {"playerName": playerName, "amount": amount, "category": category})
+            socketMessageRouter.sendMessage("RESPONSE_INCORRECT", {"playerName": playerName, "amount": amount, "category": category})
         }
 
 
@@ -142,10 +142,10 @@
 <div id="main" class="screen hideable">
     <ul id="player-summary"></ul>
     <button id="start-game">All Players In</button>
-    <div id="answer"></div>
-    <div id="question-buttons" style="display: none">
-        <button id="question-correct-button" onclick="questionCorrect(this)" >Correct</button>
-        <button id="question-incorrect-button" onclick="questionIncorrect(this)">Incorrect</button>
+    <div id="clue"></div>
+    <div id="response-buttons" style="display: none">
+        <button id="response-correct-button" onclick="responseCorrect(this)" >Correct</button>
+        <button id="response-incorrect-button" onclick="responseIncorrect(this)">Incorrect</button>
     </div>
 </div>
 </body>

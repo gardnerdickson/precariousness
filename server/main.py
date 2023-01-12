@@ -17,26 +17,26 @@ from starlette.responses import FileResponse
 from server.exceptions import InvalidPlayerId, InvalidOperation
 from server.handler import SocketHandler
 from server.log import configure_logging
-from server.model import (
-    Player,
+from server.models.game_state import GameBoardState, Player
+from server.models.message import (
     PlayerBuzzMessage,
     PlayerInitMessage,
     PlayerJoinedMessage,
     PlayerTurnStartMessage,
     StartGameMessage,
     WaitingForPlayerMessage,
-    GameBoardState,
     AllPlayersIn,
-    Answer,
-    SelectQuestionMessage,
-    QuestionSelectedMessage,
-    DeselectQuestionMessage,
+    Clue,
+    SelectClueMessage,
+    ClueSelectedMessage,
     CategorySelectedMessage,
-    QuestionCorrectMessage,
-    QuestionIncorrectMessage,
-    QuestionAnswered,
+    ResponseCorrectMessage,
+    ResponseIncorrectMessage,
+    ClueAnswered,
     NewRoundMessage,
     GameOverMessage,
+    SelectCategoryMessage,
+    DeselectCategoryMessage,
 )
 
 load_dotenv()
@@ -108,12 +108,12 @@ async def get_players_state():
 
 
 @app.post("/mark_answer_used")
-async def mark_answer_used(tile: Answer):
+async def mark_answer_used(tile: Clue):
     categories = game_board_state.rounds[game_board_state.current_round].categories
     category = next((c for c in categories if c.name == tile.category), None)
     if not category:
         raise KeyError(f"Category does not exist: {tile.category}")
-    category.questions[tile.amount].answered = True
+    category.tiles[tile.amount].answered = True
     logger.info(f"Marked {game_board_state.current_round} -> {tile.category} -> {tile.amount} as used")
 
 
@@ -197,26 +197,26 @@ async def handle_start_game(_: StartGameMessage):
     await _next_turn(random_player.id)
 
 
-@socket_handler.operation("SELECT_CATEGORY", SelectQuestionMessage)
-async def handle_category_selected(select_category_message: SelectQuestionMessage, player_id: str):
+@socket_handler.operation("SELECT_CATEGORY", SelectCategoryMessage)
+async def handle_category_selected(select_category_message: SelectCategoryMessage, player_id: str):
     category_selected_message = CategorySelectedMessage(category=select_category_message.category)
     await socket_handler.send_message("CATEGORY_SELECTED", category_selected_message, [host_socket, game_board_socket])
 
 
-@socket_handler.operation("DESELECT_CATEGORY", DeselectQuestionMessage)
-async def handle_deselect_category(deselect_category_message: DeselectQuestionMessage, player_id: str):
+@socket_handler.operation("DESELECT_CATEGORY", DeselectCategoryMessage)
+async def handle_deselect_category(deselect_category_message: DeselectCategoryMessage, player_id: str):
     await socket_handler.send_message("CATEGORY_DESELECTED", deselect_category_message, [host_socket, game_board_socket])
 
 
-@socket_handler.operation("SELECT_QUESTION", SelectQuestionMessage)
-async def handle_question_selected(select_question_message: SelectQuestionMessage, player_id: str):
+@socket_handler.operation("SELECT_CLUE", SelectClueMessage)
+async def handle_clue_selected(select_clue_message: SelectClueMessage, player_id: str):
     categories = game_board_state.rounds[game_board_state.current_round].categories
-    category = next((c for c in categories if c.name == select_question_message.category), None)
+    category = next((c for c in categories if c.name == select_clue_message.category), None)
     if not category:
-        raise KeyError(f"Category does not exist: {select_question_message.category}")
-    answer_text = category.questions[select_question_message.amount].answer
-    question_selected_message = QuestionSelectedMessage(answer_text=answer_text, **select_question_message.dict())
-    await socket_handler.send_message("QUESTION_SELECTED", question_selected_message, [host_socket, game_board_socket, *player_sockets.values()])
+        raise KeyError(f"Category does not exist: {select_clue_message.category}")
+    clue_text = category.tiles[select_clue_message.amount].clue
+    clue_selected_message = ClueSelectedMessage(clue_text=clue_text, **select_clue_message.dict())
+    await socket_handler.send_message("CLUE_SELECTED", clue_selected_message, [host_socket, game_board_socket, *player_sockets.values()])
 
 
 player_buzzed = None
@@ -235,26 +235,26 @@ async def handle_player_buzz(_: PlayerBuzzMessage, player_id: str):
         logger.info(f"Player {player_name} buzzed too late.")
 
 
-@socket_handler.operation("QUESTION_CORRECT", QuestionCorrectMessage)
-async def handle_question_correct(question_correct_message: QuestionCorrectMessage):
-    player = next((p for p in players.values() if p.name == question_correct_message.player_name))
-    player.score += question_correct_message.amount
+@socket_handler.operation("RESPONSE_CORRECT", ResponseCorrectMessage)
+async def handle_response_correct(response_correct_message: ResponseCorrectMessage):
+    player = next((p for p in players.values() if p.name == response_correct_message.player_name))
+    player.score += response_correct_message.amount
     global player_buzzed
     player_buzzed = None
 
     categories = game_board_state.rounds[game_board_state.current_round].categories
-    category = next((c for c in categories if c.name == question_correct_message.category), None)
+    category = next((c for c in categories if c.name == response_correct_message.category), None)
     if not category:
-        raise KeyError(f"Category does not exist: {question_correct_message.category}")
-    category.questions[str(question_correct_message.amount)].answered = True
+        raise KeyError(f"Category does not exist: {response_correct_message.category}")
+    category.tiles[str(response_correct_message.amount)].answered = True
 
-    question_answered_message = QuestionAnswered(category=question_correct_message.category, amount=question_correct_message.amount)
-    await socket_handler.send_message("QUESTION_ANSWERED", question_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
+    clue_answered_message = ClueAnswered(category=response_correct_message.category, amount=response_correct_message.amount)
+    await socket_handler.send_message("CLUE_ANSWERED", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
     await socket_handler.send_message("PLAYER_STATE_CHANGED", list(players.values()), [host_socket, game_board_socket, *player_sockets.values()])
 
     remaining_answers = []
     for category in categories:
-        remaining_answers.extend([a for a in category.questions.values() if not a.answered])
+        remaining_answers.extend([a for a in category.tiles.values() if not a.answered])
     logger.debug(f"Number of remaining answers: {len(remaining_answers)}")
 
     if len(remaining_answers) == 0:
@@ -262,29 +262,29 @@ async def handle_question_correct(question_correct_message: QuestionCorrectMessa
     await _next_turn(player.id)
 
 
-@socket_handler.operation("QUESTION_INCORRECT", QuestionIncorrectMessage)
-async def handle_question_incorrect(question_incorrect_message: QuestionIncorrectMessage):
-    player = next((p for p in players.values() if p.name == question_incorrect_message.player_name))
-    player.score -= question_incorrect_message.amount
+@socket_handler.operation("RESPONSE_INCORRECT", ResponseIncorrectMessage)
+async def handle_response_incorrect(response_incorrect_message: ResponseIncorrectMessage):
+    player = next((p for p in players.values() if p.name == response_incorrect_message.player_name))
+    player.score -= response_incorrect_message.amount
     global player_buzzed
     player_buzzed = None
 
     categories = game_board_state.rounds[game_board_state.current_round].categories
-    category = next((c for c in categories if c.name == question_incorrect_message.category), None)
+    category = next((c for c in categories if c.name == response_incorrect_message.category), None)
     if not category:
-        raise KeyError(f"Category does not exist: {question_incorrect_message.category}")
-    category.questions[str(question_incorrect_message.amount)].answered = True
+        raise KeyError(f"Category does not exist: {response_incorrect_message.category}")
+    category.tiles[str(response_incorrect_message.amount)].answered = True
 
-    question_answered_message = QuestionAnswered(category=question_incorrect_message.category, amount=question_incorrect_message.amount)
-    await socket_handler.send_message("QUESTION_ANSWERED", question_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
+    clue_answered_message = ClueAnswered(category=response_incorrect_message.category, amount=response_incorrect_message.amount)
+    await socket_handler.send_message("CLUE_ANSWERED", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
     await socket_handler.send_message("PLAYER_STATE_CHANGED", list(players.values()), [host_socket, game_board_socket, *player_sockets.values()])
 
-    remaining_answers = []
+    remaining_clues = []
     for category in categories:
-        remaining_answers.extend([a for a in category.questions.values() if not a.answered])
-    logger.debug(f"Number of remaining answers: {len(remaining_answers)}")
+        remaining_clues.extend([a for a in category.tiles.values() if not a.answered])
+    logger.debug(f"Number of remaining answers: {len(remaining_clues)}")
 
-    if len(remaining_answers) == 0:
+    if len(remaining_clues) == 0:
         await _next_round()
 
     sorted_by_amount = sorted(players.values(), key=lambda p: p.score)

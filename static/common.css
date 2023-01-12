@@ -3,7 +3,7 @@ body {
     font-family: 'Lora', serif;
 }
 
-.question-button {
+.clue-button {
     background-color: #eb8934;
     border-radius: 15px;
     margin-top: 10px;
@@ -18,7 +18,7 @@ body {
     flex-direction: column;
 }
 
-.question-button.button-disabled {
+.clue-button.button-disabled {
     background-color: #ffb778;
 }
 

@@ -104,8 +104,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
         constructor(
             position,
             dimensions,
-            answer,
-            question,
+            clue,
             category,
             label,
             labelPrefix,
@@ -119,8 +118,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
 
             this.state = "DOLLAR_AMOUNT"
 
-            this.answer = answer
-            this.question = question
+            this.clue = clue
 
             this.category = category
             this.label = label
@@ -156,7 +154,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
         }
 
         reveal() {
-            this.state = "ANSWER"
+            this.state = "CLUE"
             this.drawOrder = 5
         }
 
@@ -208,8 +206,8 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
         draw(ctx, canvasElement, scaleFactor) {
             if (this.state === "DOLLAR_AMOUNT") {
                 this.drawDollarLabel(ctx, canvasElement, scaleFactor)
-            } else if (this.state === "ANSWER") {
-                this.drawAnswer(ctx, canvasElement, scaleFactor)
+            } else if (this.state === "CLUE") {
+                this.drawClue(ctx, canvasElement, scaleFactor)
             } else {
                 this.drawAnswered(ctx, canvasElement, scaleFactor)
             }
@@ -243,7 +241,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
             ctx.setTransform(1, 0, 0, 1, 0, 0)
         }
 
-        drawAnswer(ctx, canvasElement, scaleFactor) {
+        drawClue(ctx, canvasElement, scaleFactor) {
             this.position.x = 0
             this.position.y = 0
             this.dimensions.width = canvasElement.width
@@ -256,11 +254,10 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
 
             ctx.textAlign = "center"
             ctx.textBaseline = "middle"
-            // ctx.font = "bold 120px " + this.labelFont
             ctx.font = this.labelFont
 
             const maxWidth = this.dimensions.width * 0.95
-            const words = this.answer.split(" ")
+            const words = this.clue.split(" ")
 
             const lines = []
             let nextWord = null
@@ -331,7 +328,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
 
             const round = this.gameBoard.rounds[this.currentRound]
             const numCols = round.categories.length
-            const numRows = Object.keys(round.categories[0].questions).length + 1
+            const numRows = Object.keys(round.categories[0].tiles).length + 1
             const tileWidth = (canvasElement.width * this.widthPercentage) / numCols
             const tileHeight = (canvasElement.height * this.heightPercentage) / numRows
 
@@ -345,7 +342,6 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
                 let categoryTile = new Tile(
                     new Position(xOffset, yOffset),
                     new Dimensions(tileWidth, tileHeight),
-                    null,
                     null,
                     category.name,
                     category.name,
@@ -361,13 +357,12 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
                 gameEntities.push(categoryTile)
                 row += 1
                 yOffset += tileHeight
-                for (const [label, question] of Object.entries(category.questions)) {
-                    console.log(label, question)
+                for (const [label, tileClue] of Object.entries(category.tiles)) {
+                    console.log(label, tileClue)
                     let tile = new Tile(
                         new Position(xOffset, yOffset),
                         new Dimensions(tileWidth, tileHeight),
-                        question.answer,
-                        question.question,
+                        tileClue.clue,
                         category.name,
                         label,
                         "$",
@@ -517,7 +512,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
     }
 
 
-    function answerToRow(col, amount) {
+    function amountToRow(col, amount) {
         for (let j = 0; j < board.tiles[col].length; j++) {
             if (board.tiles[col][j].label === amount) {
                 return j
@@ -535,19 +530,19 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
             let col = categoryToColumn(category)
             board.unsetColumnHighlight(col)
         },
-        flickerAnswer: function (category, amount, flickerCount, flickerInterval) {
+        flickerTile: function (category, amount, flickerCount, flickerInterval) {
             let col = categoryToColumn(category)
-            let row = answerToRow(col, amount)
+            let row = amountToRow(col, amount)
             board.tiles[col][row].flicker(flickerCount, flickerInterval)
         },
         markAnswered: function (category, amount) {
             let col = categoryToColumn(category)
-            let row = answerToRow(col, amount)
+            let row = amountToRow(col, amount)
             board.tiles[col][row].markAnswered()
         },
-        revealAnswer: function (category, amount) {
+        revealClue: function (category, amount) {
             let col = categoryToColumn(category)
-            let row = answerToRow(col, amount)
+            let row = amountToRow(col, amount)
             board.tiles[col][row].reveal()
         },
         setColumnHighlight: function (col) {

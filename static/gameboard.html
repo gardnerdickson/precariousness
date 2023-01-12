@@ -35,8 +35,8 @@
             socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
             socketMessageRouter.addRoute("CATEGORY_SELECTED", handleCategorySelected)
             socketMessageRouter.addRoute("CATEGORY_DESELECTED", handleCategoryDeselected)
-            socketMessageRouter.addRoute("QUESTION_SELECTED", handleQuestionSelected)
-            socketMessageRouter.addRoute("QUESTION_ANSWERED", handleQuestionAnswered)
+            socketMessageRouter.addRoute("CLUE_SELECTED", handleClueSelected)
+            socketMessageRouter.addRoute("CLUE_ANSWERED", handleClueAnswered)
             socketMessageRouter.addRoute("PLAYER_STATE_CHANGED", handlePlayerStateChanged)
             socketMessageRouter.addRoute("NEW_ROUND", handleNewRound)
         }
@@ -68,16 +68,16 @@
         }
 
 
-        function handleQuestionSelected(payload) {
-            gameBoard.flickerAnswer(payload.category, payload.amount, TILE_FLICKER_COUNT, TILE_FLICKER_INTERVAL)
+        function handleClueSelected(payload) {
+            gameBoard.flickerTile(payload.category, payload.amount, TILE_FLICKER_COUNT, TILE_FLICKER_INTERVAL)
             setTimeout(() => {
                 gameBoard.unsetCategoryHighlight(payload.category)
-                gameBoard.revealAnswer(payload.category, payload.amount)
+                gameBoard.revealClue(payload.category, payload.amount)
             }, TILE_FLICKER_COUNT * TILE_FLICKER_INTERVAL + 200)
         }
 
 
-        function handleQuestionAnswered(payload) {
+        function handleClueAnswered(payload) {
             gameBoard.markAnswered(payload.category, payload.amount)
         }
 

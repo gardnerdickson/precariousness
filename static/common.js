@@ -76,22 +76,5 @@ const service = {
                 }
                 return response.json()
             })
-    },
-    markAnswerUsed: function (round, category, amount) {
-        const tile_request_body = {
-            "category": category,
-            "amount": amount
-        }
-        return fetch("/mark_answer_used", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(tile_request_body)
-        })
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error("Failed to mark tile as used")
-                }
-                return response.json()
-            })
     }
 }

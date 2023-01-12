@@ -1,46 +1,13 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-
-class PrecariousnessBaseModel(BaseModel):
-    class Config:
-        allow_population_by_field_name = True
+from server.models import PrecariousnessBaseModel
 
 
-class SocketMessage(BaseModel):
-    operation: str
-    payload: Union[List[Any], Dict[str, Any]] = {}
-
-
-class Answer(PrecariousnessBaseModel):
+class Clue(PrecariousnessBaseModel):
     category: str
     amount: Optional[str]
-
-
-"""
-Game state models
-"""
-
-
-class Question(PrecariousnessBaseModel):
-    answer: str
-    question: str
-    answered: bool = False
-
-
-class Category(PrecariousnessBaseModel):
-    name: str
-    questions: Dict[str, Question]
-
-
-class Round(PrecariousnessBaseModel):
-    categories: List[Category]
-
-
-class GameBoardState(PrecariousnessBaseModel):
-    rounds: List[Round] = Field(default_factory=list)
-    current_round: int = Field(default=0, alias="currentRound")
 
 
 """
@@ -65,21 +32,25 @@ class StartGameMessage(PrecariousnessBaseModel):
     pass
 
 
-class SelectQuestionMessage(Answer):
+class SelectCategoryMessage(Clue):
     pass
 
 
-class DeselectQuestionMessage(Answer):
+class DeselectCategoryMessage(Clue):
     pass
 
 
-class QuestionCorrectMessage(Answer):
+class SelectClueMessage(Clue):
+    pass
+
+
+class ResponseCorrectMessage(Clue):
     player_name: str = Field(alias="playerName")
     category: str
     amount: int
 
 
-class QuestionIncorrectMessage(Answer):
+class ResponseIncorrectMessage(Clue):
     player_name: str = Field(alias="playerName")
     category: str
     amount: int
@@ -107,15 +78,15 @@ class PlayerTurnStartMessage(PrecariousnessBaseModel):
     pass
 
 
-class CategorySelectedMessage(Answer):
+class CategorySelectedMessage(Clue):
     pass
 
 
-class QuestionSelectedMessage(Answer):
-    answer_text: str = Field(alias="answerText")
+class ClueSelectedMessage(Clue):
+    clue_text: str = Field(alias="clueText")
 
 
-class QuestionAnswered(Answer):
+class ClueAnswered(Clue):
     pass
 
 
@@ -129,9 +100,3 @@ class NewRoundMessage(PrecariousnessBaseModel):
 
 class GameOverMessage(PrecariousnessBaseModel):
     pass
-
-
-class Player(PrecariousnessBaseModel):
-    id: str
-    name: str
-    score: int

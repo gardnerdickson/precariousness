@@ -6,7 +6,7 @@ from typing import Type, Union, List
 from starlette.websockets import WebSocket
 
 from server.exceptions import InvalidOperation
-from server.model import PrecariousnessBaseModel, SocketMessage
+from server.models import PrecariousnessBaseModel, SocketMessage
 
 
 logger = logging.getLogger(__name__)
