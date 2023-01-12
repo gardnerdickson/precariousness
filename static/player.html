@@ -1,18 +1,19 @@
 <head>
     <title>Precariousness!</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <script type="text/javascript" src="static/common.js"></script>
     <script type="text/javascript">
 
         const waitingForPlayerTemplate = "<p>Waiting for ${PLAYER_NAME} to choose a tile</p>"
         const categoryButtonTemplate =
-            "<li onclick=\"categoryClicked('${CATEGORY}')\" class=\"clue-button\"><p>${CATEGORY}</p></li>"
+            "<li onclick=\"categoryClicked('${CATEGORY}')\" class=\"input-row clue-button\"><p>${CATEGORY}</p></li>"
         const clueButtonTemplate =
-            "<li onclick=\"clueClicked('${CATEGORY}', '${CLUE_AMOUNT}')\" class=\"clue-button\"><p>${CLUE_AMOUNT}</p></li>"
+            "<li onclick=\"clueClicked('${CATEGORY}', '${CLUE_AMOUNT}')\" class=\"input-row clue-button\"><p>${CLUE_AMOUNT}</p></li>"
         const clueButtonDisabledTemplate =
-            "<li class=\"clue-button button-disabled\"><p>${CLUE_AMOUNT}</p></li>"
+            "<li class=\"input-row clue-button button-disabled\"><p>${CLUE_AMOUNT}</p></li>"
         const backButtonTemplate =
-            "<li onclick=\"backClicked('${CATEGORY}')\" class=\"back-button\"><p>Back</p></li>"
+            "<li onclick=\"backClicked('${CATEGORY}')\" class=\"input-row back-button\"><p>Back</p></li>"
 
         let d = document
 
@@ -20,7 +21,7 @@
         let socketMessageRouter = null
 
         d.addEventListener("DOMContentLoaded", () => {
-            d.querySelector("#init-button").addEventListener("click", () => {
+            d.querySelector("#name-submit-button").addEventListener("click", () => {
                 const inputPlayerName = d.querySelector("#name-input").value
                 playerName = inputPlayerName
                 socketMessageRouter.sendMessage("PLAYER_INIT", {"playerName": inputPlayerName})
@@ -119,7 +120,7 @@
 
         function handleClueSelected(payload) {
             hideScreens()
-            d.querySelector("#buzzer").style.display = ""
+            d.querySelector("#buzzer-wrapper").style.display = ""
         }
 
 
@@ -140,15 +141,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Lora&display=swap" rel="stylesheet">
 </head>
 <body>
+
 <div id="enter-name" class="screen hideable">
-    <div>
-        <label for="name-input">Player name:</label><input id="name-input" type="text">
-        <button id="init-button">Init</button>
+    <div class="input-row" style="padding-left: 0; padding-right: 0">
+        <input id="name-input" type="text" placeholder="Player name">
     </div>
+    <div class="input-row" id="name-submit-button">Submit</div>
 </div>
-<div id="buzzer" class="screen hideable"
-     style="background-color: red; position: absolute; width: 100%; height: 100%; display: none"></div>
+
 <div id="waiting-for-player" class="screen hideable" style="display: none"></div>
+<div id="buzzer-wrapper" class="screen hideable" style="display: none">
+    <div id="buzzer"></div>
+</div>
 
 <ul id="choose-category" class="screen hideable" style="display: none; padding-left: 0"></ul>
 <ul id="choose-clue" class="screen hideable" style="display: none; padding-left: 0"></ul>
