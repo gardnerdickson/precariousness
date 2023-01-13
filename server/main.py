@@ -308,7 +308,9 @@ async def _next_round():
 
     if game_board_state.current_round >= len(game_board_state.rounds):
         logger.debug("Game over")
-        await socket_handler.send_message("GAME_OVER", GameOverMessage(), [host_socket, game_board_socket, *player_sockets.values()])
+        await socket_handler.send_message(
+            "GAME_OVER", GameOverMessage(players=list(players.values())), [host_socket, game_board_socket, *player_sockets.values()]
+        )
     else:
         logger.debug(f"New round: {game_board_state.current_round}")
         await socket_handler.send_message("NEW_ROUND", NewRoundMessage(), game_board_socket)

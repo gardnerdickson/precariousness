@@ -301,9 +301,9 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
             }
 
             ctx.fillStyle = "#000000"
-            drawLines(0)
-            ctx.fillStyle = this.labelColor
             drawLines(2)
+            ctx.fillStyle = this.labelColor
+            drawLines(0)
 
             ctx.setTransform(1, 0, 0, 1, 0, 0)
         }
@@ -422,12 +422,12 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
 
 
     class StatusBar extends Entity {
-        constructor(playerState, canvasElement, widthPercentage, heightPercentage) {
+        constructor(playersState, canvasElement, widthPercentage, heightPercentage) {
             super(
                 new Position(0, canvasElement.height - (canvasElement * heightPercentage)),
                 new Dimensions(canvasElement.width * widthPercentage, canvasElement.height * heightPercentage)
             )
-            this.playerState = playerState
+            this.playersState = playersState
             this.widthPercentage = widthPercentage
             this.heightPercentage = heightPercentage
             this.font = STATUS_FONT
@@ -462,9 +462,9 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
             ctx.textBaseline = "middle"
             ctx.font = this.font
             ctx.fillStyle = "#000000"
-            const playerStatusWidth = this.dimensions.width / 3
-            let xOffset = playerStatusWidth / 2
-            for (let player of this.playerState) {
+            const playerStatusWidth = this.dimensions.width / this.playersState.length
+            let xOffset = 0
+            for (let player of this.playersState) {
                 ctx.fillText(
                     player.name + " - $" + player.score,
                     (this.position.x + xOffset + (playerStatusWidth / 2) + 2) / scaleFactor,
@@ -472,6 +472,98 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
                 )
                 xOffset += playerStatusWidth
             }
+            ctx.setTransform(1, 0, 0, 1, 0, 0)
+        }
+    }
+
+
+    function* rgbCycle() {
+
+        function intToHex(value) {
+            let hexVal = Math.floor(value).toString(16)
+            if (hexVal.length === 1) {
+                hexVal = "0" + hexVal
+            }
+            return hexVal
+        }
+
+        let i = 0
+        while (true) {
+            let r = Math.sin(0.07 * i) * 127 + 128
+            let g = Math.sin(0.07 * i + 2) * 127 + 128
+            let b = Math.sin(0.07 * i + 4) * 127 + 128
+            yield "#" + intToHex(r) + intToHex(g) + intToHex(b)
+            i = (i + 1) % 4096
+        }
+    }
+
+
+    class GameOverScreen extends Entity {
+        constructor(players, canvasElement) {
+            super(new Position(0, 0), new Dimensions(canvasElement.width, canvasElement.height))
+            this.players = players
+            this.backgroundColor = "#000000"
+            this.rgbCycle = rgbCycle()
+        }
+
+        update(elapsedTime, canvasElement) {
+            this.dimensions.width = canvasElement.width
+            this.dimensions.height = canvasElement.height
+            this.backgroundColor = this.rgbCycle.next().value
+        }
+
+        draw(ctx, canvasElement, scaleFactor) {
+            ctx.fillStyle = this.backgroundColor
+            ctx.fillRect(this.position.x, this.position.y, this.dimensions.width, this.dimensions.height)
+
+            ctx.scale(scaleFactor, scaleFactor)
+            ctx.textAlign = "center"
+            ctx.textBaseline = "middle"
+            ctx.font = TILE_FONT
+
+            const maxScore = Math.max(...this.players.map(p => p.score))
+            const winningPlayers = []
+            for (let player of this.players) {
+                if (player.score === maxScore) {
+                    winningPlayers.push(player)
+                }
+            }
+
+            const winnerText = (() => {
+                if (winningPlayers.length === 1) {
+                    return winningPlayers[0].name + " wins!!"
+                } else {
+                    return "Draw!!"
+                }
+            })()
+
+            let blackTextXOffset = ((this.dimensions.width / 2) + 2) / scaleFactor
+            let blackWinnerTextYOffset = ((this.dimensions.height / 3) + 2) / scaleFactor
+
+            let whiteTextXOffset = ((this.dimensions.width / 2)) / scaleFactor
+            let whiteWinnerTextYOffset = ((this.dimensions.height / 3)) / scaleFactor
+
+            ctx.fillStyle = "#000000"
+            ctx.fillText(winnerText, blackTextXOffset, blackWinnerTextYOffset)
+            ctx.fillStyle = "#ffffff"
+            ctx.fillText(winnerText, whiteTextXOffset, whiteWinnerTextYOffset)
+
+            this.players.sort((a, b) => b.score - a.score)
+
+            const fontMetrics = ctx.measureText("I")
+            const yIncrement = (fontMetrics.actualBoundingBoxAscent + fontMetrics.actualBoundingBoxDescent) * 1.8
+            let blackPlayerTextYOffset = blackWinnerTextYOffset * 2
+            let whitePlayerTextYOffset = whiteWinnerTextYOffset * 2
+            for (let player of this.players) {
+                let playerText = player.name + " - $" + player.score
+                ctx.fillStyle = "#000000"
+                ctx.fillText(playerText, blackTextXOffset, blackPlayerTextYOffset)
+                ctx.fillStyle = "#ffffff"
+                ctx.fillText(playerText, whiteTextXOffset, whitePlayerTextYOffset)
+                blackPlayerTextYOffset += yIncrement
+                whitePlayerTextYOffset += yIncrement
+            }
+
             ctx.setTransform(1, 0, 0, 1, 0, 0)
         }
     }
@@ -521,6 +613,15 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
     }
 
 
+    function gameOver(players) {
+        for (let entity of gameEntities) {
+            entity.dead = true
+        }
+        const gameOverScreen = new GameOverScreen(players, canvasElement)
+        gameEntities.push(gameOverScreen)
+    }
+
+
     return {
         setCategoryHighlight: function (category) {
             let col = categoryToColumn(category)
@@ -556,6 +657,9 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
         },
         currentRound: function () {
             return board.currentRound
+        },
+        gameOver: function (players) {
+            gameOver(players)
         },
         kill: function () {
             GAMEBOARD_STOP_GAME_LOOP = true

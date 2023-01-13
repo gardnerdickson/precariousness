@@ -1,7 +1,8 @@
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import Field
 
+from server.models.game_state import Player
 from server.models import PrecariousnessBaseModel
 
 
@@ -99,4 +100,4 @@ class NewRoundMessage(PrecariousnessBaseModel):
 
 
 class GameOverMessage(PrecariousnessBaseModel):
-    pass
+    players: List[Player]

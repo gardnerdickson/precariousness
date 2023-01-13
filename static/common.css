@@ -19,6 +19,10 @@ body {
     padding-bottom: 15px;
 }
 
+#name-submit-button:hover {
+    cursor: pointer;
+}
+
 #buzzer-wrapper {
     position: relative;
     width: 100%;
@@ -33,6 +37,10 @@ body {
     left: 10px;
     position: absolute;
     border-radius: 10px
+}
+
+#buzzer:hover {
+    cursor: pointer;
 }
 
 .input-row {
@@ -53,6 +61,10 @@ body {
     color: #ffffff
 }
 
+.clue-button:hover {
+    cursor: pointer;
+}
+
 .clue-button.button-disabled {
     background-color: #ffb778;
 }
@@ -61,6 +73,10 @@ body {
     background-color: #fff;
     color: #eb8934;
     border: 3px solid #eb8934;
+}
+
+.back-button:hover {
+    cursor: pointer;
 }
 
 #player-summary {

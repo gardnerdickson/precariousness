@@ -39,6 +39,7 @@
             socketMessageRouter.addRoute("CLUE_ANSWERED", handleClueAnswered)
             socketMessageRouter.addRoute("PLAYER_STATE_CHANGED", handlePlayerStateChanged)
             socketMessageRouter.addRoute("NEW_ROUND", handleNewRound)
+            socketMessageRouter.addRoute("GAME_OVER", handleGameOver)
         }
 
 
@@ -105,6 +106,11 @@
 
         function handlePlayerStateChanged(playersState) {
             gameBoard.updatePlayersState(playersState)
+        }
+
+
+        function handleGameOver(payload) {
+            gameBoard.gameOver(payload.players)
         }
 
 
