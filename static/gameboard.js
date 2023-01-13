@@ -104,6 +104,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
         constructor(
             position,
             dimensions,
+            board,
             clue,
             category,
             label,
@@ -115,6 +116,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
             flickerColor,
         ) {
             super(position, dimensions)
+            this.board = board
 
             this.state = "DOLLAR_AMOUNT"
 
@@ -244,8 +246,8 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
         drawClue(ctx, canvasElement, scaleFactor) {
             this.position.x = 0
             this.position.y = 0
-            this.dimensions.width = canvasElement.width
-            this.dimensions.height = canvasElement.height
+            this.dimensions.width = canvasElement.width * this.board.widthPercentage
+            this.dimensions.height = canvasElement.height * this.board.heightPercentage
 
             this._drawBorder(ctx)
             this._drawFill(ctx)
@@ -342,6 +344,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
                 let categoryTile = new Tile(
                     new Position(xOffset, yOffset),
                     new Dimensions(tileWidth, tileHeight),
+                    this,
                     null,
                     category.name,
                     category.name,
@@ -362,6 +365,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
                     let tile = new Tile(
                         new Position(xOffset, yOffset),
                         new Dimensions(tileWidth, tileHeight),
+                        this,
                         tileClue.clue,
                         category.name,
                         label,
