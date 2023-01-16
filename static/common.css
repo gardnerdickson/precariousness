@@ -95,6 +95,7 @@ ul {
 
 .row-button.button-disabled {
     background-color: #ffb778;
+    cursor: auto;
 }
 
 .back-button {

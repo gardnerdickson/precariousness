@@ -37,6 +37,7 @@ from server.models.message import (
     GameOverMessage,
     SelectCategoryMessage,
     DeselectCategoryMessage,
+    ClueRevealedMessage,
 )
 
 load_dotenv()
@@ -217,6 +218,11 @@ async def handle_clue_selected(select_clue_message: SelectClueMessage, player_id
     clue_text = category.tiles[select_clue_message.amount].clue
     clue_selected_message = ClueSelectedMessage(clue_text=clue_text, **select_clue_message.dict())
     await socket_handler.send_message("CLUE_SELECTED", clue_selected_message, [host_socket, game_board_socket, *player_sockets.values()])
+
+
+@socket_handler.operation("CLUE_REVEALED", ClueRevealedMessage)
+async def handle_clue_revealed(clue_revealed_message: ClueRevealedMessage):
+    await socket_handler.send_message("CLUE_REVEALED", clue_revealed_message, [host_socket, *player_sockets.values()])
 
 
 player_buzzed = None

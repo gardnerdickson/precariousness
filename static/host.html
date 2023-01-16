@@ -27,6 +27,7 @@
             socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
             socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
             socketMessageRouter.addRoute("CLUE_SELECTED", handleClueSelected)
+            socketMessageRouter.addRoute("CLUE_REVEALED", handleClueRevealed)
             socketMessageRouter.addRoute("PLAYER_BUZZED", handlePlayerBuzzed)
             socketMessageRouter.addRoute("CLUE_ANSWERED", handleClueAnswered)
             socketMessageRouter.addRoute("PLAYER_STATE_CHANGED", handlePlayerStateChange)
@@ -49,6 +50,10 @@
 
         function handleWaitingForPlayer(payload) {
             if (gameOver) return
+
+            d.querySelector("#response-correct-button").classList.add("button-disabled")
+            d.querySelector("#response-incorrect-button").classList.add("button-disabled")
+
             const textElement = d.querySelector("#main-text")
             textElement.style.display = ""
             textElement.innerHTML = mainTextTemplate.replace("${TEXT}", "Waiting for " + payload.playerName + " to choose a clue.")
@@ -57,14 +62,20 @@
 
         function handleClueSelected(payload) {
             d.querySelector("#main").style.display = ""
+            const responseCorrectButton = d.querySelector("#response-correct-button")
+            responseCorrectButton.classList.add("button-disabled")
+            responseCorrectButton.dataset.amount = payload.amount
+            responseCorrectButton.dataset.category = payload.category
+            const responseIncorrectButton = d.querySelector("#response-incorrect-button")
+            responseIncorrectButton.classList.add("button-disabled")
+            responseIncorrectButton.dataset.amount = payload.amount
+            responseIncorrectButton.dataset.category = payload.category
+        }
+
+
+        function handleClueRevealed(payload) {
             const textElement = d.querySelector("#main-text")
-            textElement.style.display = ""
             textElement.innerHTML = mainTextTemplate.replace("${TEXT}", "CLUE:<br/>" + payload.clueText)
-            d.querySelector("#response-buttons").style.display = ""
-            d.querySelector("#response-correct-button").dataset.amount = payload.amount
-            d.querySelector("#response-correct-button").dataset.category = payload.category
-            d.querySelector("#response-incorrect-button").dataset.amount = payload.amount
-            d.querySelector("#response-incorrect-button").dataset.category = payload.category
         }
 
 
@@ -72,7 +83,9 @@
             const playerName = payload.playerName
             const playerSummaryItem = d.querySelector("#" + playerName)
             playerSummaryItem.classList.add("buzzed")
+            d.querySelector("#response-correct-button").classList.remove("button-disabled")
             d.querySelector("#response-correct-button").dataset.playerName = playerName
+            d.querySelector("#response-incorrect-button").classList.remove("button-disabled")
             d.querySelector("#response-incorrect-button").dataset.playerName = playerName
         }
 
@@ -81,7 +94,6 @@
             const textElement = d.querySelector("#main-text")
             textElement.style.display = "none"
             textElement.innerHTML = ""
-            d.querySelector("#response-buttons").style.display = "none"
             d.querySelectorAll(".player-list-item").forEach((item) => {
                 item.classList.remove("buzzed")
             })
@@ -104,23 +116,23 @@
 
 
         function responseCorrect(buttonElement) {
+            if (buttonElement.classList.contains("button-disabled")) {
+                return;
+            }
             const playerName = buttonElement.dataset.playerName
             const amount = buttonElement.dataset.amount
             const category = buttonElement.dataset.category
-            if ([playerName, amount, category].some(x => x === null || x === undefined)) {
-                return;
-            }
             socketMessageRouter.sendMessage("RESPONSE_CORRECT", {"playerName": playerName, "amount": amount, "category": category})
         }
 
 
         function responseIncorrect(buttonElement) {
+            if (buttonElement.classList.contains("button-disabled")) {
+                return;
+            }
             const playerName = buttonElement.dataset.playerName
             const amount = buttonElement.dataset.amount
             const category = buttonElement.dataset.category
-            if ([playerName, amount, category].some(x => x === null || x === undefined)) {
-                return;
-            }
             socketMessageRouter.sendMessage("RESPONSE_INCORRECT", {"playerName": playerName, "amount": amount, "category": category})
         }
 
@@ -145,12 +157,12 @@
 <ul id="players-joining" class="screen hideable">
     <li class="text-row row-button" onclick="allPlayersInClicked()"><p>All Players In</p></li>
 </ul>
-<div id="main" class="screen hideable">
-    <div id="main-text" class="text-row row-label" style="display: none"></div>
+<div id="main" class="screen hideable" style="display: none">
+    <div id="main-text" class="text-row row-label"></div>
     <ul id="player-list"></ul>
-    <ul id="response-buttons" style="display: none;">
-        <li id="response-correct-button" class="text-column row-button" onclick="responseCorrect(this)"><p>Correct</p></li>
-        <li id="response-incorrect-button" class="text-column row-button" onclick="responseIncorrect(this)"><p>Incorrect</p></li>
+    <ul id="response-buttons">
+        <li id="response-correct-button" class="text-column row-button button-disabled" onclick="responseCorrect(this)"><p>Correct</p></li>
+        <li id="response-incorrect-button" class="text-column row-button button-disabled" onclick="responseIncorrect(this)"><p>Incorrect</p></li>
     </ul>
 </div>
 </body>

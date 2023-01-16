@@ -8,7 +8,6 @@
         const TILE_FLICKER_INTERVAL = 200
         const TILE_FLICKER_COUNT = 6
 
-        const playerTemplate = "<div>${PLAYER_NAME} | ${PLAYER_SCORE}</div>"
         const d = document
 
         let socketMessageRouter = null
@@ -92,7 +91,9 @@
                     gameBoardCanvas.width = gameBoardDiv.offsetWidth
                     gameBoardCanvas.height = gameBoardDiv.offsetHeight
 
-                    gameBoard = NewGameBoard(gameBoardState, playersState, gameBoardCanvas)
+                    gameBoard = NewGameBoard(gameBoardState, playersState, gameBoardCanvas, (clueText) => {
+                        socketMessageRouter.sendMessage("CLUE_REVEALED", {"clueText": clueText})
+                    });
                 })
         }
 

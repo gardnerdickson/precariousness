@@ -1,4 +1,4 @@
-const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
+const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClueReveal) {
     let GAMEBOARD_STOP_GAME_LOOP = false
     let board = null
     let statusBar = null
@@ -115,6 +115,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
             idleColor,
             highlightColor,
             flickerColor,
+            onClueReveal
         ) {
             super(position, dimensions)
             this.board = board
@@ -131,6 +132,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
             this.idleColor = idleColor
             this.highlightColor = highlightColor
             this.flickerColor = flickerColor
+            this.onClueReveal = onClueReveal
 
             this.currentColor = this.idleColor
             this.flickerCount = 0
@@ -159,6 +161,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
         reveal() {
             this.state = "CLUE"
             this.drawOrder = 5
+            this.onClueReveal(this.clue)
         }
 
         markAnswered() {
@@ -355,7 +358,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
                     TILE_IDLE_COLOR,
                     TILE_HIGHLIGHT_COLOR,
                     TILE_FLICKER_COLOR,
-                    null
+                    onClueReveal
                 )
                 this.tiles[col][row] = categoryTile
                 gameEntities.push(categoryTile)
@@ -376,6 +379,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
                         TILE_IDLE_COLOR,
                         TILE_HIGHLIGHT_COLOR,
                         TILE_FLICKER_COLOR,
+                        onClueReveal
                     )
                     this.tiles[col][row] = tile
                     gameEntities.push(tile)
@@ -470,8 +474,9 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
             const playerStatusWidth = this.dimensions.width / this.players.length
             let xOffset = 0
             for (let player of this.players) {
+                let dollarSign = player.score < 0 ? "-$" : "$"
                 ctx.fillText(
-                    player.name + " - $" + player.score,
+                    player.name + " - " + dollarSign + Math.abs(player.score),
                     (this.position.x + xOffset + (playerStatusWidth / 2)) / scaleFactor,
                     (this.position.y + (this.dimensions.height / 2)) / scaleFactor
                 )
@@ -560,7 +565,8 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
             let blackPlayerTextYOffset = blackWinnerTextYOffset * 2
             let whitePlayerTextYOffset = whiteWinnerTextYOffset * 2
             for (let player of this.players) {
-                let playerText = player.name + " - $" + player.score
+                let dollarSign = player.score < 0 ? "-$" : "$"
+                let playerText = player.name + " - " + dollarSign + Math.abs(player.score)
                 ctx.fillStyle = "#000000"
                 ctx.fillText(playerText, blackTextXOffset, blackPlayerTextYOffset)
                 ctx.fillStyle = "#ffffff"

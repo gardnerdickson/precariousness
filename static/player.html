@@ -47,7 +47,7 @@
             socketMessageRouter = new SocketMessageRouter(ws_url)
             socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
             socketMessageRouter.addRoute("PLAYER_TURN_START", handlePlayerTurnStart)
-            socketMessageRouter.addRoute("CLUE_SELECTED", handleClueSelected)
+            socketMessageRouter.addRoute("CLUE_REVEALED", handleClueRevealed)
             socketMessageRouter.addRoute("CLUE_ANSWERED", handleClueAnswered)
             socketMessageRouter.addRoute("GAME_OVER", handleGameOver)
         }
@@ -121,7 +121,7 @@
         }
 
 
-        function handleClueSelected(payload) {
+        function handleClueRevealed(payload) {
             hideScreens()
             d.querySelector("#buzzer-wrapper").style.display = ""
         }
