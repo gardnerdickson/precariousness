@@ -4,24 +4,15 @@
     <script type="text/javascript" src="static/common.js"></script>
     <script type="text/javascript">
 
-        const waitingForPlayerTemplate = "<p>Waiting for ${PLAYER_NAME} to choose a tile</p>"
-        const clueTemplate = "<p>${CLUE_TEXT}</p>"
-        const playerSummaryTemplate = "<p>${PLAYER_NAME} - ${PLAYER_SCORE}</p>"
-        const playerSummaryElementTemplate = "<li id=\"${PLAYER_NAME}-summary\" class=\"player-summary-item\">" +
-            playerSummaryTemplate +
-            "</li>"
+        const playerJoinedTemplate = "<li class=\"text-row row-label\"><p>${PLAYER_NAME}</p></li>"
+        const mainTextTemplate = "<p>${TEXT}</p>"
+        const playerTemplate = "<li id=\"${PLAYER_NAME}\" class=\"text-row row-label player-list-item\"><p>${PLAYER_NAME}</p></li>"
 
         const d = document
         const players = new Map()
 
         let socketMessageRouter = null
-
-        d.addEventListener("DOMContentLoaded", () => {
-            d.querySelector("#start-game").addEventListener("click", () => {
-                socketMessageRouter.sendMessage("START_GAME", {})
-                initMainHostScreen()
-            })
-        })
+        let gameOver = false
 
 
         function initSocket() {
@@ -39,34 +30,36 @@
             socketMessageRouter.addRoute("PLAYER_BUZZED", handlePlayerBuzzed)
             socketMessageRouter.addRoute("CLUE_ANSWERED", handleClueAnswered)
             socketMessageRouter.addRoute("PLAYER_STATE_CHANGED", handlePlayerStateChange)
+            socketMessageRouter.addRoute("GAME_OVER", handleGameOver)
+        }
+
+
+        function allPlayersInClicked() {
+            socketMessageRouter.sendMessage("START_GAME", {})
+            initMainHostScreen()
         }
 
 
         function handlePlayerJoined(payload) {
             players.set(payload.playerName, payload.playerScore)
-            const playerList = d.querySelector("#player-summary")
-            const playerInfo = playerSummaryElementTemplate
-                .replaceAll("${PLAYER_NAME}", payload.playerName)
-                .replaceAll("${PLAYER_SCORE}", payload.playerScore)
-
-            playerList.innerHTML += playerInfo
+            const playersJoining = d.querySelector("#players-joining")
+            playersJoining.innerHTML = playerJoinedTemplate.replaceAll("${PLAYER_NAME}", payload.playerName) + playersJoining.innerHTML
         }
 
 
         function handleWaitingForPlayer(payload) {
-            console.log("START GAME!!!", payload)
-            const el = d.querySelector("#waiting-for-player")
-            el.style.display = ""
-            el.innerHTML = waitingForPlayerTemplate.replace("${PLAYER_NAME}", payload.playerName)
+            if (gameOver) return
+            const textElement = d.querySelector("#main-text")
+            textElement.style.display = ""
+            textElement.innerHTML = mainTextTemplate.replace("${TEXT}", "Waiting for " + payload.playerName + " to choose a clue.")
         }
 
 
         function handleClueSelected(payload) {
             d.querySelector("#main").style.display = ""
-            d.querySelector("#waiting-for-player").style.display = "none"
-            const clueElement = d.querySelector("#clue")
-            clueElement.style.display = ""
-            clueElement.innerHTML = clueTemplate.replace("${CLUE_TEXT}", payload.clueText)
+            const textElement = d.querySelector("#main-text")
+            textElement.style.display = ""
+            textElement.innerHTML = mainTextTemplate.replace("${TEXT}", "CLUE:<br/>" + payload.clueText)
             d.querySelector("#response-buttons").style.display = ""
             d.querySelector("#response-correct-button").dataset.amount = payload.amount
             d.querySelector("#response-correct-button").dataset.category = payload.category
@@ -77,7 +70,7 @@
 
         function handlePlayerBuzzed(payload) {
             const playerName = payload.playerName
-            const playerSummaryItem = d.querySelector("#" + playerName + "-summary")
+            const playerSummaryItem = d.querySelector("#" + playerName)
             playerSummaryItem.classList.add("buzzed")
             d.querySelector("#response-correct-button").dataset.playerName = playerName
             d.querySelector("#response-incorrect-button").dataset.playerName = playerName
@@ -85,27 +78,28 @@
 
 
         function handleClueAnswered(payload) {
-            d.querySelector("#clue").innerHTML = ""
+            const textElement = d.querySelector("#main-text")
+            textElement.style.display = "none"
+            textElement.innerHTML = ""
             d.querySelector("#response-buttons").style.display = "none"
-            d.querySelectorAll(".player-summary-item").forEach((item) => {
+            d.querySelectorAll(".player-list-item").forEach((item) => {
                 item.classList.remove("buzzed")
             })
         }
 
 
         function handlePlayerStateChange(players) {
-            for (let player of players) {
-                let playerSummary = d.querySelector("#" + player.name + "-summary")
-                playerSummary.innerHTML = playerSummaryTemplate
-                    .replaceAll("${PLAYER_NAME}", player.name)
-                    .replaceAll("${PLAYER_SCORE}", player.score)
-            }
         }
 
 
         function initMainHostScreen() {
-            d.querySelector("#main").style.display = ""
-            d.querySelector("#start-game").style.display = "none"
+            hideScreens()
+            const main = d.querySelector("#main")
+            const playerList = d.querySelector("#player-list")
+            players.forEach((_, name) => {
+                playerList.innerHTML += playerTemplate.replaceAll("${PLAYER_NAME}", name)
+            })
+            main.style.display = ""
         }
 
 
@@ -131,21 +125,32 @@
         }
 
 
+        function handleGameOver(_) {
+            hideScreens()
+            gameOver = true
+        }
+
+
         initSocket()
 
     </script>
 
     <link rel="stylesheet" href="static/common.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Angkor&display=swap" rel="stylesheet">
+
 </head>
 <body>
-<div id="waiting-for-player" class="screen hideable" style="display: none"></div>
+<ul id="players-joining" class="screen hideable">
+    <li class="text-row row-button" onclick="allPlayersInClicked()"><p>All Players In</p></li>
+</ul>
 <div id="main" class="screen hideable">
-    <ul id="player-summary"></ul>
-    <button id="start-game">All Players In</button>
-    <div id="clue"></div>
-    <div id="response-buttons" style="display: none">
-        <button id="response-correct-button" onclick="responseCorrect(this)" >Correct</button>
-        <button id="response-incorrect-button" onclick="responseIncorrect(this)">Incorrect</button>
-    </div>
+    <div id="main-text" class="text-row row-label" style="display: none"></div>
+    <ul id="player-list"></ul>
+    <ul id="response-buttons" style="display: none;">
+        <li id="response-correct-button" class="text-column row-button" onclick="responseCorrect(this)"><p>Correct</p></li>
+        <li id="response-incorrect-button" class="text-column row-button" onclick="responseIncorrect(this)"><p>Incorrect</p></li>
+    </ul>
 </div>
 </body>

@@ -17,7 +17,6 @@
 
         d.addEventListener("DOMContentLoaded", () => {
             hideScreens()
-            d.querySelector("#player-list-container").style.display = ""
         })
 
 
@@ -44,12 +43,6 @@
 
 
         function handlePlayerJoined(payload) {
-            const playerList = d.querySelector("#player-list")
-            const playerInfo = playerTemplate
-                .replace("${PLAYER_NAME}", payload.playerName)
-                .replace("${PLAYER_SCORE}", payload.playerScore)
-
-            playerList.innerHTML += playerInfo
         }
 
 
@@ -104,8 +97,8 @@
         }
 
 
-        function handlePlayerStateChanged(playersState) {
-            gameBoard.updatePlayersState(playersState)
+        function handlePlayerStateChanged(players) {
+            gameBoard.updatePlayersState(players)
         }
 
 
@@ -122,16 +115,10 @@
     <link rel="stylesheet" href="static/gameboard.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Lora&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Angkor&display=swap" rel="stylesheet">
 </head>
 
 <body>
-<div id="player-list-container" class="screen hideable">
-    <h4>Players</h4>
-    <div id="player-list">
-
-    </div>
-</div>
 <div id="waiting-for-player" class="screen hideable"></div>
 <div id="gameboard" class="screen hideable">
     <canvas id="gameboard-canvas"></canvas>

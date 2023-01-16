@@ -6,13 +6,14 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
     const TILE_HIGHLIGHT_COLOR = "#ffb778"
     const TILE_FLICKER_COLOR = "#ffffff"
     const TILE_LABEL_COLOR = "#a8d7e0"
-    const TILE_FONT = "bold 72px Lora"
+    const TILE_FONT = "72px Angkor"
     const TILE_BORDER_COLOR = "#ffffff"
     const TILE_BORDER_SIZE_PERCENTAGE = 0.0001
-    const CATEGORY_FONT = "bold 40px Lora"
-    const STATUS_FONT = "bold 50px Lora"
+    const CATEGORY_FONT = "60px Angkor"
+    const STATUS_FONT = "50px Angkor"
     const REFERENCE_RESOLUTION_WIDTH = 1920
-    const REFERENCE_RESOLUTION_HEIGHT = 1080
+    const TEXT_SHADOW_OFFSET = 5
+    const TEXT_LINE_SPACING = 82
 
     let DEBUG_FLAG = false
 
@@ -253,13 +254,14 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
             this._drawFill(ctx)
 
             ctx.scale(scaleFactor, scaleFactor)
+            console.debug("scale factor", scaleFactor)
 
             ctx.textAlign = "center"
             ctx.textBaseline = "middle"
             ctx.font = this.labelFont
 
             const maxWidth = this.dimensions.width * 0.95
-            const words = this.clue.split(" ")
+            const words = this.clue.toUpperCase().split(" ")
 
             const lines = []
             let nextWord = null
@@ -278,8 +280,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
                 }
             }
 
-            const fontMetrics = ctx.measureText("I")
-            const yIncrement = fontMetrics.actualBoundingBoxAscent + fontMetrics.actualBoundingBoxDescent
+            const yIncrement = TEXT_LINE_SPACING * scaleFactor
 
             const drawLines = (offset) => {
                 if (lines.length > 1) {
@@ -303,7 +304,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
             }
 
             ctx.fillStyle = "#000000"
-            drawLines(2)
+            drawLines(TEXT_SHADOW_OFFSET * scaleFactor)
             ctx.fillStyle = this.labelColor
             drawLines(0)
 
@@ -426,12 +427,12 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
 
 
     class StatusBar extends Entity {
-        constructor(playersState, canvasElement, widthPercentage, heightPercentage) {
+        constructor(players, canvasElement, widthPercentage, heightPercentage) {
             super(
                 new Position(0, canvasElement.height - (canvasElement * heightPercentage)),
                 new Dimensions(canvasElement.width * widthPercentage, canvasElement.height * heightPercentage)
             )
-            this.playersState = playersState
+            this.players = players
             this.widthPercentage = widthPercentage
             this.heightPercentage = heightPercentage
             this.font = STATUS_FONT
@@ -466,13 +467,13 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
             ctx.textBaseline = "middle"
             ctx.font = this.font
             ctx.fillStyle = "#000000"
-            const playerStatusWidth = this.dimensions.width / this.playersState.length
+            const playerStatusWidth = this.dimensions.width / this.players.length
             let xOffset = 0
-            for (let player of this.playersState) {
+            for (let player of this.players) {
                 ctx.fillText(
                     player.name + " - $" + player.score,
-                    (this.position.x + xOffset + (playerStatusWidth / 2) + 2) / scaleFactor,
-                    (this.position.y + (this.dimensions.height / 2) + 2) / scaleFactor
+                    (this.position.x + xOffset + (playerStatusWidth / 2)) / scaleFactor,
+                    (this.position.y + (this.dimensions.height / 2)) / scaleFactor
                 )
                 xOffset += playerStatusWidth
             }
@@ -541,8 +542,9 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
                 }
             })()
 
-            let blackTextXOffset = ((this.dimensions.width / 2) + 2) / scaleFactor
-            let blackWinnerTextYOffset = ((this.dimensions.height / 3) + 2) / scaleFactor
+            let shadowOffset = TEXT_SHADOW_OFFSET * scaleFactor
+            let blackTextXOffset = ((this.dimensions.width / 2) + shadowOffset) / scaleFactor
+            let blackWinnerTextYOffset = ((this.dimensions.height / 3) + shadowOffset) / scaleFactor
 
             let whiteTextXOffset = ((this.dimensions.width / 2)) / scaleFactor
             let whiteWinnerTextYOffset = ((this.dimensions.height / 3)) / scaleFactor
@@ -554,8 +556,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
 
             this.players.sort((a, b) => b.score - a.score)
 
-            const fontMetrics = ctx.measureText("I")
-            const yIncrement = (fontMetrics.actualBoundingBoxAscent + fontMetrics.actualBoundingBoxDescent) * 1.8
+            const yIncrement = TEXT_LINE_SPACING * scaleFactor
             let blackPlayerTextYOffset = blackWinnerTextYOffset * 2
             let whitePlayerTextYOffset = whiteWinnerTextYOffset * 2
             for (let player of this.players) {
@@ -656,8 +657,8 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement) {
         unsetColumnHighlight: function (col) {
             board.unsetColumnHighlight(col)
         },
-        updatePlayersState: function (playersState) {
-            statusBar.playerState = playersState
+        updatePlayersState: function (players) {
+            statusBar.players = players
         },
         currentRound: function () {
             return board.currentRound
