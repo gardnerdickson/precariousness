@@ -13,12 +13,12 @@ ul {
     height: 50px;
     font-size: 24px;
     border-radius: 15px;
-    border: 5px solid #eb8934;
+    border: 5px solid #4c566a;
     padding: 0;
 }
 
 #name-submit-button {
-    background-color: #eb8934;
+    background-color: #4c566a;
     color: #ffffff;
     padding-top: 15px;
     padding-bottom: 15px;
@@ -35,7 +35,7 @@ ul {
 }
 
 #buzzer {
-    background-color: red;
+    background-color: #bf616a;
     top: 10px;
     right: 10px;
     bottom: 10px;
@@ -85,7 +85,7 @@ ul {
 }
 
 .row-button {
-    background-color: #eb8934;
+    background-color: #4c566a;
     color: #ffffff
 }
 
@@ -94,14 +94,14 @@ ul {
 }
 
 .row-button.button-disabled {
-    background-color: #ffb778;
+    background-color: #d8dee9;
     cursor: auto;
 }
 
 .back-button {
     background-color: #fff;
-    color: #eb8934;
-    border: 3px solid #eb8934;
+    color: #4c566a;
+    border: 3px solid #4c566a;
 }
 
 .back-button:hover {
@@ -110,10 +110,10 @@ ul {
 
 
 .text-row.player-list-item {
-    border: 3px solid red;
+    border: 3px solid #bf616a;
 }
 
 
 .player-list-item.buzzed {
-    background-color: red;
+    background-color: #bf616a;
 }
