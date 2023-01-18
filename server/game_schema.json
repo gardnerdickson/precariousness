@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PrecariousGame",
+  "description": "Data for a Precarious game",
+  "type": "object",
+  "required": ["rounds"],
+  "properties": {
+    "rounds": {
+      "description": "List of game rounds",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "description": "List of category objects that make up the round",
+        "items": {"$ref":  "#/$defs/category"},
+        "minItems": 1
+      },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "category": {
+      "type": "object",
+      "required": ["name", "tiles"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the category"
+        },
+        "tiles": {
+          "type": "object",
+          "description": "The tiles on the board under this category",
+          "patternProperties": {
+            "^\\d+$": {"$ref": "#/$defs/tile"}
+          }
+        }
+      }
+    },
+    "tile": {
+      "type": "object",
+      "required": ["clue", "correct_response"],
+      "properties": {
+        "clue": {
+          "type": "string",
+          "description": "The clue presented to players"
+        },
+        "correct_response": {
+          "type": "string",
+          "description": "The correct response to the clue"
+        }
+      }
+    }
+  }
+}

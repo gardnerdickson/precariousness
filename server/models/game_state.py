@@ -16,12 +16,8 @@ class Category(PrecariousnessBaseModel):
     tiles: Dict[str, Tile]
 
 
-class Round(PrecariousnessBaseModel):
-    categories: List[Category]
-
-
 class GameBoardState(PrecariousnessBaseModel):
-    rounds: List[Round] = Field(default_factory=list)
+    rounds: List[List[Category]] = Field(default_factory=list)
     current_round: int = Field(default=0, alias="currentRound")
 
 

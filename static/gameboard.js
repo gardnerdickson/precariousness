@@ -257,7 +257,6 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
             this._drawFill(ctx)
 
             ctx.scale(scaleFactor, scaleFactor)
-            console.debug("scale factor", scaleFactor)
 
             ctx.textAlign = "center"
             ctx.textBaseline = "middle"
@@ -333,8 +332,8 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
             this.heightPercentage = heightPercentage
 
             const round = this.gameBoard.rounds[this.currentRound]
-            const numCols = round.categories.length
-            const numRows = Object.keys(round.categories[0].tiles).length + 1
+            const numCols = Object.keys(round).length
+            const numRows = Object.keys(round[0].tiles).length + 1
             const tileWidth = (canvasElement.width * this.widthPercentage) / numCols
             const tileHeight = (canvasElement.height * this.heightPercentage) / numRows
 
@@ -342,7 +341,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
 
             let xOffset = 0
             let col = 0
-            for (let category of round.categories) {
+            for (let category of round) {
                 let yOffset = 0
                 let row = 0
                 let categoryTile = new Tile(
@@ -365,7 +364,6 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
                 row += 1
                 yOffset += tileHeight
                 for (const [label, tileClue] of Object.entries(category.tiles)) {
-                    console.log(label, tileClue)
                     let tile = new Tile(
                         new Position(xOffset, yOffset),
                         new Dimensions(tileWidth, tileHeight),

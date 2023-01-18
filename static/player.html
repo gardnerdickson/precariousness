@@ -48,7 +48,6 @@
             socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
             socketMessageRouter.addRoute("PLAYER_TURN_START", handlePlayerTurnStart)
             socketMessageRouter.addRoute("CLUE_REVEALED", handleClueRevealed)
-            socketMessageRouter.addRoute("CLUE_ANSWERED", handleClueAnswered)
             socketMessageRouter.addRoute("GAME_OVER", handleGameOver)
         }
 
@@ -58,7 +57,7 @@
             chooseCategoryContainer.innerHTML = ""
             service.getGameBoardState().then((gameState) => {
                 const round = gameState.rounds[gameState.currentRound]
-                for (let category of round.categories) {
+                for (let category of round) {
                     chooseCategoryContainer.innerHTML += categoryButtonTemplate.replaceAll("${CATEGORY}", category.name)
                 }
                 chooseCategoryContainer.style.display = ""
@@ -73,7 +72,7 @@
             const chooseClueContainer = d.querySelector("#choose-clue")
             chooseClueContainer.innerHTML = ""
             service.getGameBoardState().then((gameState) => {
-                const category = gameState.rounds[gameState.currentRound].categories.find((value) => {
+                const category = gameState.rounds[gameState.currentRound].find((value) => {
                     return value.name === categoryName
                 })
                 for (let [amount, tile] of Object.entries(category.tiles)) {
@@ -107,7 +106,6 @@
 
         function handleWaitingForPlayer(payload) {
             if (gameOver) return
-            console.log("waiting for player", payload)
             hideScreens()
             const waitingForPlayerElement = d.querySelector("#waiting-for-player")
             waitingForPlayerElement.innerHTML = waitingForPlayerTemplate.replace("${PLAYER_NAME}", payload.playerName)
@@ -115,7 +113,6 @@
         }
 
         function handlePlayerTurnStart(payload) {
-            console.log("PLAYER_TURN_START!!!")
             hideScreens()
             showCategorySelectionButtons()
         }
@@ -124,11 +121,6 @@
         function handleClueRevealed(payload) {
             hideScreens()
             d.querySelector("#buzzer-wrapper").style.display = ""
-        }
-
-
-        function handleClueAnswered(payload) {
-
         }
 
 

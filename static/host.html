@@ -1,5 +1,6 @@
 <head>
     <title>Precariousness!</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <script type="text/javascript" src="static/common.js"></script>
     <script type="text/javascript">
@@ -30,7 +31,6 @@
             socketMessageRouter.addRoute("CLUE_REVEALED", handleClueRevealed)
             socketMessageRouter.addRoute("PLAYER_BUZZED", handlePlayerBuzzed)
             socketMessageRouter.addRoute("CLUE_ANSWERED", handleClueAnswered)
-            socketMessageRouter.addRoute("PLAYER_STATE_CHANGED", handlePlayerStateChange)
             socketMessageRouter.addRoute("GAME_OVER", handleGameOver)
         }
 
@@ -97,10 +97,6 @@
             d.querySelectorAll(".player-list-item").forEach((item) => {
                 item.classList.remove("buzzed")
             })
-        }
-
-
-        function handlePlayerStateChange(players) {
         }
 
 

@@ -28,7 +28,6 @@
             ws_url += "/gameboard_socket"
             console.log("Opening gameboard socket")
             socketMessageRouter = new SocketMessageRouter(ws_url)
-            socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
             socketMessageRouter.addRoute("ALL_PLAYERS_IN", handleNewRound)
             socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
             socketMessageRouter.addRoute("CATEGORY_SELECTED", handleCategorySelected)
@@ -38,10 +37,6 @@
             socketMessageRouter.addRoute("PLAYER_STATE_CHANGED", handlePlayerStateChanged)
             socketMessageRouter.addRoute("NEW_ROUND", handleNewRound)
             socketMessageRouter.addRoute("GAME_OVER", handleGameOver)
-        }
-
-
-        function handlePlayerJoined(payload) {
         }
 
 

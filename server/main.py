@@ -10,6 +10,7 @@ from typing import Dict, Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
+from jsonschema import validate
 from pydantic import ValidationError
 from starlette.requests import Request
 from starlette.responses import FileResponse
@@ -48,8 +49,11 @@ logger = logging.getLogger(__name__)
 if "GAME_FILE" not in os.environ:
     raise KeyError("Environment variable 'GAME_FILE' required.")
 
-with open(os.environ["GAME_FILE"]) as fh:
-    game_board_state = GameBoardState.parse_obj(json.load(fh))
+with open(os.environ["GAME_FILE"]) as data_fh, open("server/game_schema.json") as schema_fh:
+    game_data = json.load(data_fh)
+    game_schema = json.load(schema_fh)
+    validate(game_data, game_schema)
+    game_board_state = GameBoardState.parse_obj(game_data)
 
 app = FastAPI(title="Precariousness!")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -110,7 +114,7 @@ async def get_players_state():
 
 @app.post("/mark_answer_used")
 async def mark_answer_used(tile: Clue):
-    categories = game_board_state.rounds[game_board_state.current_round].categories
+    categories = game_board_state.rounds[game_board_state.current_round]
     category = next((c for c in categories if c.name == tile.category), None)
     if not category:
         raise KeyError(f"Category does not exist: {tile.category}")
@@ -211,7 +215,7 @@ async def handle_deselect_category(deselect_category_message: DeselectCategoryMe
 
 @socket_handler.operation("SELECT_CLUE", SelectClueMessage)
 async def handle_clue_selected(select_clue_message: SelectClueMessage, player_id: str):
-    categories = game_board_state.rounds[game_board_state.current_round].categories
+    categories = game_board_state.rounds[game_board_state.current_round]
     category = next((c for c in categories if c.name == select_clue_message.category), None)
     if not category:
         raise KeyError(f"Category does not exist: {select_clue_message.category}")
@@ -248,7 +252,7 @@ async def handle_response_correct(response_correct_message: ResponseCorrectMessa
     global player_buzzed
     player_buzzed = None
 
-    categories = game_board_state.rounds[game_board_state.current_round].categories
+    categories = game_board_state.rounds[game_board_state.current_round]
     category = next((c for c in categories if c.name == response_correct_message.category), None)
     if not category:
         raise KeyError(f"Category does not exist: {response_correct_message.category}")
@@ -261,7 +265,6 @@ async def handle_response_correct(response_correct_message: ResponseCorrectMessa
     remaining_answers = []
     for category in categories:
         remaining_answers.extend([a for a in category.tiles.values() if not a.answered])
-    logger.debug(f"Number of remaining answers: {len(remaining_answers)}")
 
     if len(remaining_answers) == 0:
         await _next_round()
@@ -275,7 +278,7 @@ async def handle_response_incorrect(response_incorrect_message: ResponseIncorrec
     global player_buzzed
     player_buzzed = None
 
-    categories = game_board_state.rounds[game_board_state.current_round].categories
+    categories = game_board_state.rounds[game_board_state.current_round]
     category = next((c for c in categories if c.name == response_incorrect_message.category), None)
     if not category:
         raise KeyError(f"Category does not exist: {response_incorrect_message.category}")
@@ -288,7 +291,6 @@ async def handle_response_incorrect(response_incorrect_message: ResponseIncorrec
     remaining_clues = []
     for category in categories:
         remaining_clues.extend([a for a in category.tiles.values() if not a.answered])
-    logger.debug(f"Number of remaining answers: {len(remaining_clues)}")
 
     if len(remaining_clues) == 0:
         await _next_round()
