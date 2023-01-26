@@ -45,8 +45,8 @@ class SelectClueMessage(Clue):
     pass
 
 
-class ClueRevealedMessage(PrecariousnessBaseModel):
-    clue_text: str = Field(alias="clueText")
+class ClueRevealedMessage(Clue):
+    pass
 
 
 class ResponseCorrectMessage(Clue):
@@ -93,6 +93,11 @@ class ClueSelectedMessage(Clue):
 
 class ClueAnswered(Clue):
     pass
+
+
+class ClueInfo(PrecariousnessBaseModel):
+    clue: str = Field(alias="clue")
+    correct_response: str = Field(alias="correctResponse")
 
 
 class AllPlayersIn(PrecariousnessBaseModel):

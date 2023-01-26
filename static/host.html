@@ -75,7 +75,7 @@
 
         function handleClueRevealed(payload) {
             const textElement = d.querySelector("#main-text")
-            textElement.innerHTML = mainTextTemplate.replace("${TEXT}", "CLUE:<br/>" + payload.clueText)
+            textElement.innerHTML = mainTextTemplate.replace("${TEXT}", "CLUE:<br/>" + payload.clue + "<br/>" + "CORRECT RESPONSE:<br/>" + payload.correctResponse)
         }
 
 

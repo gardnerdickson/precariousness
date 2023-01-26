@@ -39,6 +39,7 @@ from server.models.message import (
     SelectCategoryMessage,
     DeselectCategoryMessage,
     ClueRevealedMessage,
+    ClueInfo,
 )
 
 load_dotenv()
@@ -226,7 +227,10 @@ async def handle_clue_selected(select_clue_message: SelectClueMessage, player_id
 
 @socket_handler.operation("CLUE_REVEALED", ClueRevealedMessage)
 async def handle_clue_revealed(clue_revealed_message: ClueRevealedMessage):
-    await socket_handler.send_message("CLUE_REVEALED", clue_revealed_message, [host_socket, *player_sockets.values()])
+    tile = _get_tile_info(clue_revealed_message.category, clue_revealed_message.amount)
+    await socket_handler.send_message(
+        "CLUE_REVEALED", ClueInfo(clue=tile.clue, correct_response=tile.correct_response), [host_socket, *player_sockets.values()]
+    )
 
 
 player_buzzed = None
@@ -298,6 +302,14 @@ async def handle_response_incorrect(response_incorrect_message: ResponseIncorrec
     sorted_by_amount = sorted(players.values(), key=lambda p: p.score)
     player_with_least_amount = sorted_by_amount[0].id
     await _next_turn(player_with_least_amount)
+
+
+def _get_tile_info(category: str, amount: str):
+    categories = game_board_state.rounds[game_board_state.current_round]
+    category = next((c for c in categories if c.name == category), None)
+    if not category:
+        raise KeyError(f"Category does not exist: {category}")
+    return category.tiles[amount]
 
 
 async def _next_turn(player_id: str):

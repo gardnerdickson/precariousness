@@ -161,7 +161,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
         reveal() {
             this.state = "CLUE"
             this.drawOrder = 5
-            this.onClueReveal(this.clue)
+            this.onClueReveal(this.category, this.label)
         }
 
         markAnswered() {

@@ -86,8 +86,8 @@
                     gameBoardCanvas.width = gameBoardDiv.offsetWidth
                     gameBoardCanvas.height = gameBoardDiv.offsetHeight
 
-                    gameBoard = NewGameBoard(gameBoardState, playersState, gameBoardCanvas, (clueText) => {
-                        socketMessageRouter.sendMessage("CLUE_REVEALED", {"clueText": clueText})
+                    gameBoard = NewGameBoard(gameBoardState, playersState, gameBoardCanvas, (category, amount) => {
+                        socketMessageRouter.sendMessage("CLUE_REVEALED", {"category": category, "amount": amount})
                     });
                 })
         }
