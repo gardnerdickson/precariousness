@@ -91,12 +91,18 @@
 
 
         function handleClueAnswered(payload) {
-            const textElement = d.querySelector("#main-text")
-            textElement.style.display = "none"
-            textElement.innerHTML = ""
-            d.querySelectorAll(".player-list-item").forEach((item) => {
-                item.classList.remove("buzzed")
-            })
+            if (payload.answeredCorrectly) {
+                const textElement = d.querySelector("#main-text")
+                textElement.style.display = "none"
+                textElement.innerHTML = ""
+                d.querySelectorAll(".player-list-item").forEach((item) => {
+                    item.classList.remove("buzzed")
+                })
+            } else {
+                if (payload.playerName !== null) {
+                    d.querySelector("#" + payload.playerName).classList.remove("buzzed")
+                }
+            }
         }
 
 

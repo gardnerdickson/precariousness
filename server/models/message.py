@@ -61,6 +61,10 @@ class ResponseIncorrectMessage(Clue):
     amount: int
 
 
+class ClueExpiredMessage(Clue):
+    pass
+
+
 class ErrorMessage(PrecariousnessBaseModel):
     error: str
 
@@ -92,7 +96,8 @@ class ClueSelectedMessage(Clue):
 
 
 class ClueAnswered(Clue):
-    pass
+    answered_correctly: bool = Field(alias="answeredCorrectly")
+    player_name: Optional[str] = Field(alias="playerName")
 
 
 class ClueInfo(PrecariousnessBaseModel):

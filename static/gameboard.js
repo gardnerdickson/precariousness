@@ -1,4 +1,4 @@
-const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClueReveal) {
+const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClueReveal, onClueExpired) {
     let GAMEBOARD_STOP_GAME_LOOP = false
     let board = null
     let statusBar = null
@@ -11,6 +11,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
     const TILE_BORDER_SIZE_PERCENTAGE = 0.0001
     const CATEGORY_FONT = "60px Angkor"
     const STATUS_FONT = "50px Angkor"
+    const TIME_BAR_DURATION = 12000
     const REFERENCE_RESOLUTION_WIDTH = 1920
     const TEXT_SHADOW_OFFSET = 5
     const TEXT_LINE_SPACING = 82
@@ -18,6 +19,12 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
     let DEBUG_FLAG = false
 
     let gameEntities = []
+
+
+    function lerp(start, end, amount) {
+        return (1 - amount) * start + amount * end
+    }
+
 
     class Game {
         constructor(canvasElement) {
@@ -438,6 +445,31 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
             this.widthPercentage = widthPercentage
             this.heightPercentage = heightPercentage
             this.font = STATUS_FONT
+            this.displayTimeBar = false
+            this.timeBarPaused = false
+            this.timeBarElapsed = -1
+            this.timeBarDuration = -1
+            this.onTimeBarFinished = null
+        }
+
+        startTimeBar(duration, onTimeBarFinished) {
+            this.displayTimeBar = true
+            this.timeBarPaused = false
+            this.timeBarDuration = duration
+            this.timeBarElapsed = 0
+            this.timeBarFinished = onTimeBarFinished
+        }
+
+        pauseTimeBar() {
+            this.timeBarPaused = true
+        }
+
+        resumeTimeBar() {
+            this.timeBarPaused = false
+        }
+
+        resetTimeBar() {
+            this.displayTimeBar = false
         }
 
         update(elapsedTime, canvasElement) {
@@ -445,6 +477,18 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
             this.dimensions.height = canvasElement.height * this.heightPercentage
             this.position.x = 0
             this.position.y = canvasElement.height - (canvasElement.height * this.heightPercentage)
+
+            console.log("time bar paused", this.timeBarPaused)
+            if (this.displayTimeBar && !this.timeBarPaused) {
+                this.timeBarElapsed += elapsedTime
+                if (this.timeBarElapsed > this.timeBarDuration) {
+                    this.displayTimeBar = false
+                    if (this.timeBarFinished !== null) {
+                        this.timeBarFinished()
+                        this.timeBarFinished = null
+                    }
+                }
+            }
         }
 
         draw(ctx, canvasElement, scaleFactor) {
@@ -463,6 +507,13 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
             const xPos = this.position.x + (borderSize / 2)
             const yPos = this.position.y + (borderSize / 2)
             ctx.fillRect(xPos, yPos, width, height)
+
+            if (this.displayTimeBar) {
+                let timeBarPosX = lerp(xPos, xPos + width / 2, this.timeBarElapsed / this.timeBarDuration)
+                let timeBarWidth = lerp(width, 0, this.timeBarElapsed / this.timeBarDuration)
+                ctx.fillStyle = TILE_LABEL_COLOR
+                ctx.fillRect(timeBarPosX, yPos, timeBarWidth, height)
+            }
 
             ctx.scale(scaleFactor, scaleFactor)
             ctx.textAlign = "center"
@@ -654,6 +705,16 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
             let col = categoryToColumn(category)
             let row = amountToRow(col, amount)
             board.tiles[col][row].reveal()
+            statusBar.startTimeBar(TIME_BAR_DURATION, () => onClueExpired(category, amount))
+        },
+        pauseTimeBar: function () {
+            statusBar.pauseTimeBar()
+        },
+        resumeTimeBar: function () {
+            statusBar.resumeTimeBar()
+        },
+        resetTimeBar: function () {
+            statusBar.resetTimeBar()
         },
         setColumnHighlight: function (col) {
             board.setColumnHighlight(col)

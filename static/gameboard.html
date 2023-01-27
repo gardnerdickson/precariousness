@@ -32,8 +32,10 @@
             socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
             socketMessageRouter.addRoute("CATEGORY_SELECTED", handleCategorySelected)
             socketMessageRouter.addRoute("CATEGORY_DESELECTED", handleCategoryDeselected)
+            socketMessageRouter.addRoute("PLAYER_BUZZED", handlePlayerBuzzed)
             socketMessageRouter.addRoute("CLUE_SELECTED", handleClueSelected)
             socketMessageRouter.addRoute("CLUE_ANSWERED", handleClueAnswered)
+            socketMessageRouter.addRoute("TURN_OVER", handleTurnOver)
             socketMessageRouter.addRoute("PLAYER_STATE_CHANGED", handlePlayerStateChanged)
             socketMessageRouter.addRoute("NEW_ROUND", handleNewRound)
             socketMessageRouter.addRoute("GAME_OVER", handleGameOver)
@@ -56,6 +58,11 @@
         }
 
 
+        function handlePlayerBuzzed(payload) {
+            gameBoard.pauseTimeBar()
+        }
+
+
         function handleClueSelected(payload) {
             gameBoard.flickerTile(payload.category, payload.amount, TILE_FLICKER_COUNT, TILE_FLICKER_INTERVAL)
             setTimeout(() => {
@@ -66,7 +73,15 @@
 
 
         function handleClueAnswered(payload) {
+            if (!payload.answeredCorrectly) {
+                gameBoard.resumeTimeBar()
+            }
+        }
+
+
+        function handleTurnOver(payload) {
             gameBoard.markAnswered(payload.category, payload.amount)
+            gameBoard.resetTimeBar()
         }
 
 
@@ -86,9 +101,17 @@
                     gameBoardCanvas.width = gameBoardDiv.offsetWidth
                     gameBoardCanvas.height = gameBoardDiv.offsetHeight
 
-                    gameBoard = NewGameBoard(gameBoardState, playersState, gameBoardCanvas, (category, amount) => {
-                        socketMessageRouter.sendMessage("CLUE_REVEALED", {"category": category, "amount": amount})
-                    });
+                    gameBoard = NewGameBoard(
+                        gameBoardState,
+                        playersState,
+                        gameBoardCanvas,
+                        (category, amount) => {
+                            socketMessageRouter.sendMessage("CLUE_REVEALED", {"category": category, "amount": amount})
+                        },
+                        (category, amount) => {
+                            socketMessageRouter.sendMessage("CLUE_EXPIRED", {"category": category, "amount": amount})
+                        }
+                    );
                 })
         }
 
