@@ -6,15 +6,17 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
     const TILE_HIGHLIGHT_COLOR = "#81a1c1"
     const TILE_FLICKER_COLOR = "#ffffff"
     const TILE_LABEL_COLOR = "#ebcb8b"
-    const TILE_FONT = "72px Angkor"
+    const TILE_FONT_SIZE = "72"
+    const TILE_FONT = "Angkor"
     const TILE_BORDER_COLOR = "#ffffff"
     const TILE_BORDER_SIZE_PERCENTAGE = 0.0001
-    const CATEGORY_FONT = "60px Angkor"
+    const CATEGORY_FONT_SIZE = "26"
+    const CATEGORY_FONT = "Angkor"
     const STATUS_FONT = "50px Angkor"
-    const TIME_BAR_DURATION = 12000
+    const TIME_BAR_DURATION = 20000
     const REFERENCE_RESOLUTION_WIDTH = 1920
     const TEXT_SHADOW_OFFSET = 5
-    const TEXT_LINE_SPACING = 82
+    const TEXT_LINE_SPACING = 20
 
     let DEBUG_FLAG = false
 
@@ -118,6 +120,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
             label,
             labelPrefix,
             labelFont,
+            labelFontSize,
             labelColor,
             idleColor,
             highlightColor,
@@ -135,6 +138,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
             this.label = label
             this.labelPrefix = labelPrefix
             this.labelFont = labelFont
+            this.labelFontSize = labelFontSize
             this.labelColor = labelColor
             this.idleColor = idleColor
             this.highlightColor = highlightColor
@@ -157,7 +161,6 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
         }
 
         flicker(count, interval) {
-            console.log("count", count, "interval", interval)
             this.flickerCount = count
             this.flickerTime = 0
             this.nextFlicker = interval
@@ -216,61 +219,9 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
             ctx.fillRect(xPos, yPos, width, height)
         }
 
-        draw(ctx, canvasElement, scaleFactor) {
-            if (this.state === "DOLLAR_AMOUNT") {
-                this.drawDollarLabel(ctx, canvasElement, scaleFactor)
-            } else if (this.state === "CLUE") {
-                this.drawClue(ctx, canvasElement, scaleFactor)
-            } else {
-                this.drawAnswered(ctx, canvasElement, scaleFactor)
-            }
-        }
-
-        drawDollarLabel(ctx, _, scaleFactor) {
-            this._drawBorder(ctx)
-            this._drawFill(ctx)
-
-            ctx.scale(scaleFactor, scaleFactor)
-
-            const label = this.labelPrefix + this.label
-            ctx.textAlign = "center"
-            ctx.textBaseline = "middle"
-            ctx.font = this.labelFont
-
-            ctx.fillStyle = "#000000"
-            ctx.fillText(
-                label,
-                (this.position.x + (this.dimensions.width / 2) + 2) / scaleFactor,
-                (this.position.y + (this.dimensions.height / 2) + 2) / scaleFactor
-            )
-
-            ctx.fillStyle = this.labelColor
-            ctx.fillText(
-                label,
-                (this.position.x + (this.dimensions.width / 2)) / scaleFactor,
-                (this.position.y + (this.dimensions.height / 2)) / scaleFactor
-            )
-
-            ctx.setTransform(1, 0, 0, 1, 0, 0)
-        }
-
-        drawClue(ctx, canvasElement, scaleFactor) {
-            this.position.x = 0
-            this.position.y = 0
-            this.dimensions.width = canvasElement.width * this.board.widthPercentage
-            this.dimensions.height = canvasElement.height * this.board.heightPercentage
-
-            this._drawBorder(ctx)
-            this._drawFill(ctx)
-
-            ctx.scale(scaleFactor, scaleFactor)
-
-            ctx.textAlign = "center"
-            ctx.textBaseline = "middle"
-            ctx.font = this.labelFont
-
+        _drawLines(ctx, text, fontSize, offset, scaleFactor) {
             const maxWidth = this.dimensions.width * 0.95
-            const words = this.clue.toUpperCase().split(" ")
+            const words = text.toUpperCase().split(" ")
 
             const lines = []
             let nextWord = null
@@ -288,34 +239,81 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
                     lines.push(line)
                 }
             }
+            const fontMetrics = ctx.measureText("H")
+            const fontHeight = fontMetrics.actualBoundingBoxAscent + fontMetrics.actualBoundingBoxDescent
 
-            const yIncrement = TEXT_LINE_SPACING * scaleFactor
+            const yIncrement = (fontHeight * scaleFactor) + (fontSize * 0.75 * scaleFactor)
 
-            const drawLines = (offset) => {
-                if (lines.length > 1) {
-                    let mid = (() => {
-                        if (lines.length % 2 === 0) {
-                            return lines.length / 2
-                        } else {
-                            return Math.ceil(lines.length / 2)
-                        }
-                    })()
-                    let yOffset = yIncrement * -mid
-                    for (let line of lines) {
-                        ctx.fillText(
-                            line,
-                            (this.position.x + (this.dimensions.width / 2) + offset) / scaleFactor,
-                            (this.position.y + yOffset + (this.dimensions.height / 2) + offset) / scaleFactor
-                        )
-                        yOffset += yIncrement
+            if (lines.length > 1) {
+                let mid = (() => {
+                    if (lines.length % 2 === 0) {
+                        return lines.length / 2
+                    } else {
+                        return Math.floor(lines.length / 2)
                     }
+                })()
+                let yOffset = yIncrement * -mid
+                for (let line of lines) {
+                    ctx.fillText(
+                        line,
+                        (this.position.x + (this.dimensions.width / 2) + offset) / scaleFactor,
+                        (this.position.y + yOffset + (this.dimensions.height / 2) + offset) / scaleFactor
+                    )
+                    yOffset += yIncrement
                 }
             }
 
+        }
+
+        draw(ctx, canvasElement, scaleFactor) {
+            if (this.state === "DOLLAR_AMOUNT") {
+                this.drawLabel(ctx, canvasElement, scaleFactor)
+            } else if (this.state === "CLUE") {
+                this.drawClue(ctx, canvasElement, scaleFactor)
+            } else {
+                this.drawAnswered(ctx, canvasElement, scaleFactor)
+            }
+        }
+
+        drawLabel(ctx, _, scaleFactor) {
+            this._drawBorder(ctx)
+            this._drawFill(ctx)
+
+            ctx.scale(scaleFactor, scaleFactor)
+
+            const label = this.labelPrefix + this.label
+            ctx.textAlign = "center"
+            ctx.textBaseline = "middle"
+            ctx.font = this.labelFontSize + "px " + this.labelFont
+
             ctx.fillStyle = "#000000"
-            drawLines(TEXT_SHADOW_OFFSET * scaleFactor)
+            this._drawLines(ctx, label, this.labelFontSize, TEXT_SHADOW_OFFSET * scaleFactor, scaleFactor)
+
             ctx.fillStyle = this.labelColor
-            drawLines(0)
+            this._drawLines(ctx, label, this.labelFontSize, 0, scaleFactor)
+
+            ctx.setTransform(1, 0, 0, 1, 0, 0)
+        }
+
+        drawClue(ctx, canvasElement, scaleFactor) {
+            this.position.x = 0
+            this.position.y = 0
+            this.dimensions.width = canvasElement.width * this.board.widthPercentage
+            this.dimensions.height = canvasElement.height * this.board.heightPercentage
+
+            this._drawBorder(ctx)
+            this._drawFill(ctx)
+
+            ctx.scale(scaleFactor, scaleFactor)
+
+            ctx.textAlign = "center"
+            ctx.textBaseline = "middle"
+            ctx.font = this.labelFontSize + "px " + this.labelFont
+
+            ctx.fillStyle = "#000000"
+            this._drawLines(ctx, this.clue, this.labelFontSize, TEXT_SHADOW_OFFSET * scaleFactor, scaleFactor)
+            ctx.fillStyle = this.labelColor
+            this._drawLines(ctx, this.clue, this.labelFontSize, 0, scaleFactor)
 
             ctx.setTransform(1, 0, 0, 1, 0, 0)
         }
@@ -360,6 +358,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
                     category.name,
                     "",
                     CATEGORY_FONT,
+                    CATEGORY_FONT_SIZE,
                     TILE_LABEL_COLOR,
                     TILE_IDLE_COLOR,
                     TILE_HIGHLIGHT_COLOR,
@@ -380,6 +379,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
                         label,
                         "$",
                         TILE_FONT,
+                        TILE_FONT_SIZE,
                         TILE_LABEL_COLOR,
                         TILE_IDLE_COLOR,
                         TILE_HIGHLIGHT_COLOR,
@@ -478,7 +478,6 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
             this.position.x = 0
             this.position.y = canvasElement.height - (canvasElement.height * this.heightPercentage)
 
-            console.log("time bar paused", this.timeBarPaused)
             if (this.displayTimeBar && !this.timeBarPaused) {
                 this.timeBarElapsed += elapsedTime
                 if (this.timeBarElapsed > this.timeBarDuration) {
@@ -525,7 +524,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
             for (let player of this.players) {
                 let dollarSign = player.score < 0 ? "-$" : "$"
                 ctx.fillText(
-                    player.name + " - " + dollarSign + Math.abs(player.score),
+                    player.name + " | " + dollarSign + Math.abs(player.score),
                     (this.position.x + xOffset + (playerStatusWidth / 2)) / scaleFactor,
                     (this.position.y + (this.dimensions.height / 2)) / scaleFactor
                 )
@@ -615,7 +614,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
             let whitePlayerTextYOffset = whiteWinnerTextYOffset * 2
             for (let player of this.players) {
                 let dollarSign = player.score < 0 ? "-$" : "$"
-                let playerText = player.name + " - " + dollarSign + Math.abs(player.score)
+                let playerText = player.name + " | " + dollarSign + Math.abs(player.score)
                 ctx.fillStyle = "#000000"
                 ctx.fillText(playerText, blackTextXOffset, blackPlayerTextYOffset)
                 ctx.fillStyle = "#ffffff"
