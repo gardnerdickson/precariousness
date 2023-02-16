@@ -120,11 +120,11 @@ async def get_players_state():
 @app.post("/mark_answer_used")
 async def mark_answer_used(tile: Clue):
     categories = game_board_state.rounds[game_board_state.current_round]
-    category = next((c for c in categories if c.name == tile.category), None)
+    category = next((c for c in categories if c.key == tile.category_key), None)
     if not category:
-        raise KeyError(f"Category does not exist: {tile.category}")
+        raise KeyError(f"Category does not exist: {tile.category_key}")
     category.tiles[tile.amount].answered = True
-    logger.info(f"Marked {game_board_state.current_round} -> {tile.category} -> {tile.amount} as used")
+    logger.info(f"Marked {game_board_state.current_round} -> {tile.category_key} -> {tile.amount} as used")
 
 
 @app.websocket("/player_socket/{player_id}")
@@ -209,7 +209,7 @@ async def handle_start_game(_: StartGameMessage):
 
 @socket_handler.operation("SELECT_CATEGORY", SelectCategoryMessage)
 async def handle_category_selected(select_category_message: SelectCategoryMessage, player_id: str):
-    category_selected_message = CategorySelectedMessage(category=select_category_message.category)
+    category_selected_message = CategorySelectedMessage(category_key=select_category_message.category_key)
     await socket_handler.send_message("CATEGORY_SELECTED", category_selected_message, [host_socket, game_board_socket])
 
 
@@ -221,9 +221,9 @@ async def handle_deselect_category(deselect_category_message: DeselectCategoryMe
 @socket_handler.operation("SELECT_CLUE", SelectClueMessage)
 async def handle_clue_selected(select_clue_message: SelectClueMessage, player_id: str):
     categories = game_board_state.rounds[game_board_state.current_round]
-    category = next((c for c in categories if c.name == select_clue_message.category), None)
+    category = next((c for c in categories if c.key == select_clue_message.category_key), None)
     if not category:
-        raise KeyError(f"Category does not exist: {select_clue_message.category}")
+        raise KeyError(f"Category does not exist: {select_clue_message.category_key}")
     clue_text = category.tiles[select_clue_message.amount].clue
     clue_selected_message = ClueSelectedMessage(clue_text=clue_text, **select_clue_message.dict())
     await socket_handler.send_message("CLUE_SELECTED", clue_selected_message, [host_socket, game_board_socket, *player_sockets.values()])
@@ -231,7 +231,7 @@ async def handle_clue_selected(select_clue_message: SelectClueMessage, player_id
 
 @socket_handler.operation("CLUE_REVEALED", ClueRevealedMessage)
 async def handle_clue_revealed(clue_revealed_message: ClueRevealedMessage):
-    tile = game_board_state.get_tile(clue_revealed_message.category, clue_revealed_message.amount)
+    tile = game_board_state.get_tile(clue_revealed_message.category_key, clue_revealed_message.amount)
     await socket_handler.send_message(
         "CLUE_REVEALED", ClueInfo(clue=tile.clue, correct_response=tile.correct_response), [host_socket, *player_sockets.values()]
     )
@@ -254,13 +254,13 @@ async def handle_player_buzz(_: PlayerBuzzMessage, player_id: str):
 @socket_handler.operation("RESPONSE_CORRECT", ResponseCorrectMessage)
 async def handle_response_correct(response_correct_message: ResponseCorrectMessage):
     player = next((p for p in players.values() if p.name == response_correct_message.player_name))
-    player.score += response_correct_message.amount
+    player.score += int(response_correct_message.amount)
 
-    tile = game_board_state.get_tile(response_correct_message.category, str(response_correct_message.amount))
+    tile = game_board_state.get_tile(response_correct_message.category_key, str(response_correct_message.amount))
     tile.answered = True
 
     clue_answered_message = ClueAnswered(
-        category=response_correct_message.category, amount=response_correct_message.amount, answered_correctly=True, player_name=player.name
+        category_key=response_correct_message.category_key, amount=response_correct_message.amount, answered_correctly=True, player_name=player.name
     )
     await socket_handler.send_message("CLUE_ANSWERED", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
     await socket_handler.send_message("TURN_OVER", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
@@ -275,15 +275,15 @@ async def handle_response_correct(response_correct_message: ResponseCorrectMessa
 @socket_handler.operation("RESPONSE_INCORRECT", ResponseIncorrectMessage)
 async def handle_response_incorrect(response_incorrect_message: ResponseIncorrectMessage):
     player = next((p for p in players.values() if p.name == response_incorrect_message.player_name))
-    player.score -= response_incorrect_message.amount
+    player.score -= int(response_incorrect_message.amount)
     global accept_player_buzz
     accept_player_buzz = True
 
-    tile = game_board_state.get_tile(response_incorrect_message.category, str(response_incorrect_message.amount))
+    tile = game_board_state.get_tile(response_incorrect_message.category_key, str(response_incorrect_message.amount))
     tile.answered = True
 
     clue_answered_message = ClueAnswered(
-        category=response_incorrect_message.category, amount=response_incorrect_message.amount, answered_correctly=False, player_name=player.name
+        category_key=response_incorrect_message.category_key, amount=response_incorrect_message.amount, answered_correctly=False, player_name=player.name
     )
     await socket_handler.send_message("CLUE_ANSWERED", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
     await socket_handler.send_message("PLAYER_STATE_CHANGED", list(players.values()), [host_socket, game_board_socket, *player_sockets.values()])
@@ -296,10 +296,10 @@ async def handle_response_incorrect(response_incorrect_message: ResponseIncorrec
 
 @socket_handler.operation("CLUE_EXPIRED", ClueExpiredMessage)
 async def handle_clue_expired(clue_expired_message: ClueExpiredMessage):
-    tile = game_board_state.get_tile(clue_expired_message.category, clue_expired_message.amount)
+    tile = game_board_state.get_tile(clue_expired_message.category_key, clue_expired_message.amount)
     tile.answered = True
 
-    clue_answered_message = ClueAnswered(category=clue_expired_message.category, amount=clue_expired_message.amount, answered_correctly=False)
+    clue_answered_message = ClueAnswered(category_key=clue_expired_message.category_key, amount=clue_expired_message.amount, answered_correctly=False)
     await socket_handler.send_message("CLUE_ANSWERED", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
     await socket_handler.send_message("TURN_OVER", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
 

@@ -7,7 +7,8 @@ from server.models import PrecariousnessBaseModel
 
 
 class Clue(PrecariousnessBaseModel):
-    category: str
+    category_key: str = Field(alias="categoryKey")
+    category: Optional[str]
     amount: Optional[str]
 
 
@@ -51,14 +52,10 @@ class ClueRevealedMessage(Clue):
 
 class ResponseCorrectMessage(Clue):
     player_name: str = Field(alias="playerName")
-    category: str
-    amount: int
 
 
 class ResponseIncorrectMessage(Clue):
     player_name: str = Field(alias="playerName")
-    category: str
-    amount: int
 
 
 class ClueExpiredMessage(Clue):

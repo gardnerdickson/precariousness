@@ -16,7 +16,6 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
     const TIME_BAR_DURATION = 20000
     const REFERENCE_RESOLUTION_WIDTH = 1920
     const TEXT_SHADOW_OFFSET = 5
-    const TEXT_LINE_SPACING = 20
 
     let DEBUG_FLAG = false
 
@@ -116,7 +115,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
             dimensions,
             board,
             clue,
-            category,
+            categoryKey,
             label,
             labelPrefix,
             labelFont,
@@ -134,7 +133,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
 
             this.clue = clue
 
-            this.category = category
+            this.categoryKey = categoryKey
             this.label = label
             this.labelPrefix = labelPrefix
             this.labelFont = labelFont
@@ -171,7 +170,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
         reveal() {
             this.state = "CLUE"
             this.drawOrder = 5
-            this.onClueReveal(this.category, this.label)
+            this.onClueReveal(this.categoryKey, this.label)
         }
 
         markAnswered() {
@@ -354,7 +353,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
                     new Dimensions(tileWidth, tileHeight),
                     this,
                     null,
-                    category.name,
+                    category.key,
                     category.name,
                     "",
                     CATEGORY_FONT,
@@ -375,7 +374,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
                         new Dimensions(tileWidth, tileHeight),
                         this,
                         tileClue.clue,
-                        category.name,
+                        category.key,
                         label,
                         "$",
                         TILE_FONT,
@@ -577,7 +576,7 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
             ctx.scale(scaleFactor, scaleFactor)
             ctx.textAlign = "center"
             ctx.textBaseline = "middle"
-            ctx.font = TILE_FONT
+            ctx.font = TILE_FONT_SIZE + "px " + TILE_FONT
 
             const maxScore = Math.max(...this.players.map(p => p.score))
             const winningPlayers = []
@@ -609,7 +608,10 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
 
             this.players.sort((a, b) => b.score - a.score)
 
-            const yIncrement = TEXT_LINE_SPACING * scaleFactor
+            const fontMetrics = ctx.measureText("H")
+            const fontHeight = fontMetrics.actualBoundingBoxAscent + fontMetrics.actualBoundingBoxDescent
+            const yIncrement = (fontHeight * scaleFactor) + (TILE_FONT_SIZE * 0.75 * scaleFactor)
+
             let blackPlayerTextYOffset = blackWinnerTextYOffset * 2
             let whitePlayerTextYOffset = whiteWinnerTextYOffset * 2
             for (let player of this.players) {
@@ -654,9 +656,9 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
     })();
 
 
-    function categoryToColumn(category) {
+    function categoryToColumn(categoryKey) {
         for (let i = 0; i < board.tiles.length; i++) {
-            if (board.tiles[i][0].category === category) {
+            if (board.tiles[i][0].categoryKey === categoryKey) {
                 return i
             }
         }
@@ -682,29 +684,29 @@ const NewGameBoard = function (gameBoardData, playersState, canvasElement, onClu
 
 
     return {
-        setCategoryHighlight: function (category) {
-            let col = categoryToColumn(category)
+        setCategoryHighlight: function (categoryKey) {
+            let col = categoryToColumn(categoryKey)
             board.setColumnHighlight(col)
         },
-        unsetCategoryHighlight: function (category) {
-            let col = categoryToColumn(category)
+        unsetCategoryHighlight: function (categoryKey) {
+            let col = categoryToColumn(categoryKey)
             board.unsetColumnHighlight(col)
         },
-        flickerTile: function (category, amount, flickerCount, flickerInterval) {
-            let col = categoryToColumn(category)
+        flickerTile: function (categoryKey, amount, flickerCount, flickerInterval) {
+            let col = categoryToColumn(categoryKey)
             let row = amountToRow(col, amount)
             board.tiles[col][row].flicker(flickerCount, flickerInterval)
         },
-        markAnswered: function (category, amount) {
-            let col = categoryToColumn(category)
+        markAnswered: function (categoryKey, amount) {
+            let col = categoryToColumn(categoryKey)
             let row = amountToRow(col, amount)
             board.tiles[col][row].markAnswered()
         },
-        revealClue: function (category, amount) {
-            let col = categoryToColumn(category)
+        revealClue: function (categoryKey, amount) {
+            let col = categoryToColumn(categoryKey)
             let row = amountToRow(col, amount)
             board.tiles[col][row].reveal()
-            statusBar.startTimeBar(TIME_BAR_DURATION, () => onClueExpired(category, amount))
+            statusBar.startTimeBar(TIME_BAR_DURATION, () => onClueExpired(categoryKey, amount))
         },
         pauseTimeBar: function () {
             statusBar.pauseTimeBar()

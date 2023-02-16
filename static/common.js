@@ -42,9 +42,9 @@ class SocketMessageRouter {
     }
 
     sendMessage(operation, obj) {
-        console.debug("Sending message:", obj)
-        const message = JSON.stringify({"operation": operation, "payload": obj})
-        this.websocket.send(message)
+        const message = {"operation": operation, "payload": obj}
+        console.debug("Sending message:", message)
+        this.websocket.send(JSON.stringify(message))
     }
 }
 

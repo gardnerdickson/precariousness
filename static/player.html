@@ -7,13 +7,13 @@
 
         const waitingForPlayerTemplate = "<p>Waiting for ${PLAYER_NAME} to choose a tile</p>"
         const categoryButtonTemplate =
-            "<li onclick=\"categoryClicked('${CATEGORY}')\" class=\"text-row row-button\"><p>${CATEGORY}</p></li>"
+            "<li onclick=\"categoryClicked('${CATEGORY_KEY}')\" class=\"text-row row-button\"><p>${CATEGORY_NAME}</p></li>"
         const clueButtonTemplate =
-            "<li onclick=\"clueClicked('${CATEGORY}', '${CLUE_AMOUNT}')\" class=\"text-row row-button\"><p>$${CLUE_AMOUNT}</p></li>"
+            "<li onclick=\"clueClicked('${CATEGORY_KEY}', '${CLUE_AMOUNT}')\" class=\"text-row row-button\"><p>$${CLUE_AMOUNT}</p></li>"
         const clueButtonDisabledTemplate =
             "<li class=\"text-row row-button button-disabled\"><p>$${CLUE_AMOUNT}</p></li>"
         const backButtonTemplate =
-            "<li onclick=\"backClicked('${CATEGORY}')\" class=\"text-row back-button\"><p>Back</p></li>"
+            "<li onclick=\"backClicked('${CATEGORY_KEY}')\" class=\"text-row back-button\"><p>Back</p></li>"
 
         let d = document
 
@@ -59,22 +59,24 @@
             service.getGameBoardState().then((gameState) => {
                 const round = gameState.rounds[gameState.currentRound]
                 for (let category of round) {
-                    chooseCategoryContainer.innerHTML += categoryButtonTemplate.replaceAll("${CATEGORY}", category.name)
+                    chooseCategoryContainer.innerHTML += categoryButtonTemplate
+                        .replaceAll("${CATEGORY_KEY}", category.key)
+                        .replaceAll("${CATEGORY_NAME}", category.name)
                 }
                 chooseCategoryContainer.style.display = ""
             })
         }
 
 
-        function categoryClicked(categoryName) {
-            socketMessageRouter.sendMessage("SELECT_CATEGORY", {"category": categoryName})
+        function categoryClicked(categoryKey) {
+            socketMessageRouter.sendMessage("SELECT_CATEGORY", {"categoryKey": categoryKey})
 
             hideScreens()
             const chooseClueContainer = d.querySelector("#choose-clue")
             chooseClueContainer.innerHTML = ""
             service.getGameBoardState().then((gameState) => {
                 const category = gameState.rounds[gameState.currentRound].find((value) => {
-                    return value.name === categoryName
+                    return value.key === categoryKey
                 })
                 for (let [amount, tile] of Object.entries(category.tiles)) {
                     if (tile.answered) {
@@ -83,25 +85,25 @@
                     } else {
                         chooseClueContainer.innerHTML += clueButtonTemplate
                             .replaceAll("${CLUE_AMOUNT}", amount)
-                            .replaceAll("${CATEGORY}", categoryName)
+                            .replaceAll("${CATEGORY_KEY}", categoryKey)
                     }
                 }
-                chooseClueContainer.innerHTML += backButtonTemplate.replaceAll("${CATEGORY}", categoryName)
+                chooseClueContainer.innerHTML += backButtonTemplate.replaceAll("${CATEGORY_KEY}", categoryKey)
                 chooseClueContainer.style.display = ""
             })
         }
 
 
-        function clueClicked(category, amount) {
+        function clueClicked(categoryKey, amount) {
             hideScreens()
-            socketMessageRouter.sendMessage("SELECT_CLUE", {"category": category, "amount": amount})
+            socketMessageRouter.sendMessage("SELECT_CLUE", {"categoryKey": categoryKey, "amount": amount})
         }
 
 
         function backClicked(categoryName) {
             hideScreens()
             showCategorySelectionButtons()
-            socketMessageRouter.sendMessage("DESELECT_CATEGORY", {"category": categoryName})
+            socketMessageRouter.sendMessage("DESELECT_CATEGORY", {"categoryKey": categoryName})
         }
 
 

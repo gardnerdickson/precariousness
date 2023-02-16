@@ -65,11 +65,11 @@
             const responseCorrectButton = d.querySelector("#response-correct-button")
             responseCorrectButton.classList.add("button-disabled")
             responseCorrectButton.dataset.amount = payload.amount
-            responseCorrectButton.dataset.category = payload.category
+            responseCorrectButton.dataset.categoryKey = payload.categoryKey
             const responseIncorrectButton = d.querySelector("#response-incorrect-button")
             responseIncorrectButton.classList.add("button-disabled")
             responseIncorrectButton.dataset.amount = payload.amount
-            responseIncorrectButton.dataset.category = payload.category
+            responseIncorrectButton.dataset.categoryKey = payload.categoryKey
         }
 
 
@@ -123,8 +123,8 @@
             }
             const playerName = buttonElement.dataset.playerName
             const amount = buttonElement.dataset.amount
-            const category = buttonElement.dataset.category
-            socketMessageRouter.sendMessage("RESPONSE_CORRECT", {"playerName": playerName, "amount": amount, "category": category})
+            const categoryKey = buttonElement.dataset.categoryKey
+            socketMessageRouter.sendMessage("RESPONSE_CORRECT", {"playerName": playerName, "amount": amount, "categoryKey": categoryKey})
         }
 
 
@@ -134,8 +134,8 @@
             }
             const playerName = buttonElement.dataset.playerName
             const amount = buttonElement.dataset.amount
-            const category = buttonElement.dataset.category
-            socketMessageRouter.sendMessage("RESPONSE_INCORRECT", {"playerName": playerName, "amount": amount, "category": category})
+            const categoryKey = buttonElement.dataset.categoryKey
+            socketMessageRouter.sendMessage("RESPONSE_INCORRECT", {"playerName": playerName, "amount": amount, "categoryKey": categoryKey})
         }
 
 

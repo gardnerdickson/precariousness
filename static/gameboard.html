@@ -49,12 +49,12 @@
 
         function handleCategorySelected(payload) {
             console.log("handle category selected")
-            gameBoard.setCategoryHighlight(payload.category)
+            gameBoard.setCategoryHighlight(payload.categoryKey)
         }
 
 
         function handleCategoryDeselected(payload) {
-            gameBoard.unsetCategoryHighlight(payload.category)
+            gameBoard.unsetCategoryHighlight(payload.categoryKey)
         }
 
 
@@ -64,10 +64,10 @@
 
 
         function handleClueSelected(payload) {
-            gameBoard.flickerTile(payload.category, payload.amount, TILE_FLICKER_COUNT, TILE_FLICKER_INTERVAL)
+            gameBoard.flickerTile(payload.categoryKey, payload.amount, TILE_FLICKER_COUNT, TILE_FLICKER_INTERVAL)
             setTimeout(() => {
-                gameBoard.unsetCategoryHighlight(payload.category)
-                gameBoard.revealClue(payload.category, payload.amount)
+                gameBoard.unsetCategoryHighlight(payload.categoryKey)
+                gameBoard.revealClue(payload.categoryKey, payload.amount)
             }, TILE_FLICKER_COUNT * TILE_FLICKER_INTERVAL + 200)
         }
 
@@ -80,7 +80,7 @@
 
 
         function handleTurnOver(payload) {
-            gameBoard.markAnswered(payload.category, payload.amount)
+            gameBoard.markAnswered(payload.categoryKey, payload.amount)
             gameBoard.resetTimeBar()
         }
 
@@ -105,11 +105,11 @@
                         gameBoardState,
                         playersState,
                         gameBoardCanvas,
-                        (category, amount) => {
-                            socketMessageRouter.sendMessage("CLUE_REVEALED", {"category": category, "amount": amount})
+                        (categoryKey, amount) => {
+                            socketMessageRouter.sendMessage("CLUE_REVEALED", {"categoryKey": categoryKey, "amount": amount})
                         },
-                        (category, amount) => {
-                            socketMessageRouter.sendMessage("CLUE_EXPIRED", {"category": category, "amount": amount})
+                        (categoryKey, amount) => {
+                            socketMessageRouter.sendMessage("CLUE_EXPIRED", {"categoryKey": categoryKey, "amount": amount})
                         }
                     );
                 })
