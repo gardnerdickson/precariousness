@@ -1,4 +1,5 @@
 fastapi~=0.88
 jsonschema~=4.17
+redis~=4.5
 uvicorn~=0.20
 websockets~=10.4

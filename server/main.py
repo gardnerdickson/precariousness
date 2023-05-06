@@ -5,7 +5,7 @@ import random
 import sys
 import uuid
 from json import JSONDecodeError
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -15,10 +15,12 @@ from pydantic import ValidationError
 from starlette.requests import Request
 from starlette.responses import FileResponse
 
+import server.session as session
+
 from server.exceptions import InvalidPlayerId, InvalidOperation
 from server.handler import SocketHandler
 from server.log import configure_logging
-from server.models.game_state import GameBoardState, Player
+from server.models.game_state import GameBoard, Player
 from server.models.message import (
     PlayerBuzzMessage,
     PlayerInitMessage,
@@ -48,14 +50,6 @@ load_dotenv()
 configure_logging()
 logger = logging.getLogger(__name__)
 
-if "GAME_FILE" not in os.environ:
-    raise KeyError("Environment variable 'GAME_FILE' required.")
-
-with open(os.environ["GAME_FILE"]) as data_fh, open("server/game_schema.json") as schema_fh:
-    game_data = json.load(data_fh)
-    game_schema = json.load(schema_fh)
-    validate(game_data, game_schema)
-    game_board_state = GameBoardState.parse_obj(game_data)
 
 app = FastAPI(title="Precariousness!")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -64,13 +58,28 @@ player_sockets: Dict[str, Optional[WebSocket]] = {}
 host_socket: Optional[WebSocket] = None
 game_board_socket: Optional[WebSocket] = None
 
-players: Dict[str, Player] = {}
-current_player_idx = 0
 accept_player_buzz = True
 players_buzzed = set()
 
 
+game_id = session.generate_game_id()
+
 socket_handler = SocketHandler()
+
+
+def initialize_game_board():
+    if "GAME_FILE" not in os.environ:
+        raise KeyError("Environment variable 'GAME_FILE' required.")
+
+    with open(os.environ["GAME_FILE"]) as data_fh, open("server/game_schema.json") as schema_fh:
+        game_data = json.load(data_fh)
+        game_schema = json.load(schema_fh)
+        validate(game_data, game_schema)
+        game_board = GameBoard.parse_obj(game_data)
+        session.save_game_board(game_id, game_board)
+
+
+initialize_game_board()
 
 
 @app.exception_handler(InvalidPlayerId)
@@ -109,22 +118,24 @@ async def register_new_player():
 
 @app.post("/get_game_board_state")
 async def get_game_board_state():
-    return game_board_state
+    return session.get_game_board(game_id)
 
 
 @app.post("/get_players_state")
 async def get_players_state():
-    return list(players.values())
+    return session.get_all_players(game_id)
 
 
 @app.post("/mark_answer_used")
 async def mark_answer_used(tile: Clue):
-    categories = game_board_state.rounds[game_board_state.current_round]
+    game_board = session.get_game_board(game_id)
+    categories = game_board.rounds[game_board.current_round]
     category = next((c for c in categories if c.key == tile.category_key), None)
     if not category:
         raise KeyError(f"Category does not exist: {tile.category_key}")
     category.tiles[tile.amount].answered = True
-    logger.info(f"Marked {game_board_state.current_round} -> {tile.category_key} -> {tile.amount} as used")
+    logger.info(f"Marked {game_board.current_round} -> {tile.category_key} -> {tile.amount} as used")
+    session.save_game_board(game_id, game_board)
 
 
 @app.websocket("/player_socket/{player_id}")
@@ -191,8 +202,9 @@ async def handle_exception(websocket: WebSocket, _: Exception):
 
 @socket_handler.operation("PLAYER_INIT", PlayerInitMessage)
 async def handle_player_init(inbound_message: PlayerInitMessage, player_id: str):
-    players[player_id] = Player(id=player_id, name=inbound_message.player_name, score=0)
-    logger.info(f"Player initialized: {players[player_id]}")
+    new_player = Player(id=player_id, name=inbound_message.player_name, score=0)
+    session.save_player(game_id, new_player)
+    logger.info(f"Player initialized: {player_id}")
 
     outbound_message = PlayerJoinedMessage(player_name=inbound_message.player_name, player_score=0)
     await socket_handler.send_message("PLAYER_JOINED", outbound_message, host_socket)
@@ -203,8 +215,9 @@ async def handle_player_init(inbound_message: PlayerInitMessage, player_id: str)
 async def handle_start_game(_: StartGameMessage):
     all_players_in_message = AllPlayersIn()
     await socket_handler.send_message("ALL_PLAYERS_IN", all_players_in_message, game_board_socket)
-    random_player = list(players.values())[random.randint(0, len(players)) - 1]
-    await _next_turn(random_player.id)
+    players = session.get_all_players(game_id)
+    random_player = list(players)[random.randint(0, len(players)) - 1]
+    await _next_turn(random_player)
 
 
 @socket_handler.operation("SELECT_CATEGORY", SelectCategoryMessage)
@@ -220,7 +233,8 @@ async def handle_deselect_category(deselect_category_message: DeselectCategoryMe
 
 @socket_handler.operation("SELECT_CLUE", SelectClueMessage)
 async def handle_clue_selected(select_clue_message: SelectClueMessage, player_id: str):
-    categories = game_board_state.rounds[game_board_state.current_round]
+    game_board = session.get_game_board(game_id)
+    categories = game_board.rounds[game_board.current_round]
     category = next((c for c in categories if c.key == select_clue_message.category_key), None)
     if not category:
         raise KeyError(f"Category does not exist: {select_clue_message.category_key}")
@@ -231,7 +245,8 @@ async def handle_clue_selected(select_clue_message: SelectClueMessage, player_id
 
 @socket_handler.operation("CLUE_REVEALED", ClueRevealedMessage)
 async def handle_clue_revealed(clue_revealed_message: ClueRevealedMessage):
-    tile = game_board_state.get_tile(clue_revealed_message.category_key, clue_revealed_message.amount)
+    game_board = session.get_game_board(game_id)
+    tile = game_board.get_tile(clue_revealed_message.category_key, clue_revealed_message.amount)
     await socket_handler.send_message(
         "CLUE_REVEALED", ClueInfo(clue=tile.clue, correct_response=tile.correct_response), [host_socket, *player_sockets.values()]
     )
@@ -239,7 +254,8 @@ async def handle_clue_revealed(clue_revealed_message: ClueRevealedMessage):
 
 @socket_handler.operation("PLAYER_BUZZ", PlayerBuzzMessage)
 async def handle_player_buzz(_: PlayerBuzzMessage, player_id: str):
-    player_name = players[player_id].name
+    player = session.get_player(game_id, player_id)
+    player_name = player.name
     global accept_player_buzz
     if accept_player_buzz and player_id not in players_buzzed:
         logger.info(f"{player_name} was the first to buzz")
@@ -253,10 +269,13 @@ async def handle_player_buzz(_: PlayerBuzzMessage, player_id: str):
 
 @socket_handler.operation("RESPONSE_CORRECT", ResponseCorrectMessage)
 async def handle_response_correct(response_correct_message: ResponseCorrectMessage):
-    player = next((p for p in players.values() if p.name == response_correct_message.player_name))
+    players = session.get_all_players(game_id)
+    player = next((p for p in players if p.name == response_correct_message.player_name))
     player.score += int(response_correct_message.amount)
+    session.save_player(game_id, player)
 
-    tile = game_board_state.get_tile(response_correct_message.category_key, str(response_correct_message.amount))
+    game_board = session.get_game_board(game_id)
+    tile = game_board.get_tile(response_correct_message.category_key, str(response_correct_message.amount))
     tile.answered = True
 
     clue_answered_message = ClueAnswered(
@@ -264,81 +283,87 @@ async def handle_response_correct(response_correct_message: ResponseCorrectMessa
     )
     await socket_handler.send_message("CLUE_ANSWERED", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
     await socket_handler.send_message("TURN_OVER", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
-    await socket_handler.send_message("PLAYER_STATE_CHANGED", list(players.values()), [host_socket, game_board_socket, *player_sockets.values()])
+    await socket_handler.send_message("PLAYER_STATE_CHANGED", players, [host_socket, game_board_socket, *player_sockets.values()])
 
-    remaining_tiles = game_board_state.get_remaining_tiles()
+    remaining_tiles = game_board.get_remaining_tiles()
     if len(remaining_tiles) == 0:
-        await _next_round()
-    await _next_turn(player.id)
+        await _next_round(players, game_board)
+    session.save_game_board(game_id, game_board)
+    await _next_turn(player)
 
 
 @socket_handler.operation("RESPONSE_INCORRECT", ResponseIncorrectMessage)
 async def handle_response_incorrect(response_incorrect_message: ResponseIncorrectMessage):
-    player = next((p for p in players.values() if p.name == response_incorrect_message.player_name))
+    players = session.get_all_players(game_id)
+    player = next((p for p in players if p.name == response_incorrect_message.player_name))
     player.score -= int(response_incorrect_message.amount)
     global accept_player_buzz
     accept_player_buzz = True
 
-    tile = game_board_state.get_tile(response_incorrect_message.category_key, str(response_incorrect_message.amount))
+    session.save_player(game_id, player)
+
+    game_board = session.get_game_board(game_id)
+    tile = game_board.get_tile(response_incorrect_message.category_key, str(response_incorrect_message.amount))
     tile.answered = True
+    session.save_game_board(game_id, game_board)
 
     clue_answered_message = ClueAnswered(
         category_key=response_incorrect_message.category_key, amount=response_incorrect_message.amount, answered_correctly=False, player_name=player.name
     )
     await socket_handler.send_message("CLUE_ANSWERED", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
-    await socket_handler.send_message("PLAYER_STATE_CHANGED", list(players.values()), [host_socket, game_board_socket, *player_sockets.values()])
+    await socket_handler.send_message("PLAYER_STATE_CHANGED", players, [host_socket, game_board_socket, *player_sockets.values()])
 
     if len(players_buzzed) == len(players):
         await socket_handler.send_message("TURN_OVER", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
-        next_player = get_next_player_when_clue_not_answered_correctly()
-        await _next_turn(next_player.id)
+        next_player = get_next_player_when_clue_not_answered_correctly(players)
+        await _next_turn(next_player)
 
 
 @socket_handler.operation("CLUE_EXPIRED", ClueExpiredMessage)
 async def handle_clue_expired(clue_expired_message: ClueExpiredMessage):
-    tile = game_board_state.get_tile(clue_expired_message.category_key, clue_expired_message.amount)
+    players = session.get_all_players(game_id)
+    game_board = session.get_game_board(game_id)
+    tile = game_board.get_tile(clue_expired_message.category_key, clue_expired_message.amount)
     tile.answered = True
 
     clue_answered_message = ClueAnswered(category_key=clue_expired_message.category_key, amount=clue_expired_message.amount, answered_correctly=False)
     await socket_handler.send_message("CLUE_ANSWERED", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
     await socket_handler.send_message("TURN_OVER", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
 
-    remaining_tiles = game_board_state.get_remaining_tiles()
+    remaining_tiles = game_board.get_remaining_tiles()
     if len(remaining_tiles) == 0:
-        await _next_round()
+        await _next_round(players, game_board)
+    session.save_game_board(game_id, game_board)
 
-    next_player = get_next_player_when_clue_not_answered_correctly()
-    await _next_turn(next_player.id)
+    next_player = get_next_player_when_clue_not_answered_correctly(players)
+    await _next_turn(next_player)
 
 
-def get_next_player_when_clue_not_answered_correctly() -> Player:
-    sorted_by_amount = sorted(players.values(), key=lambda p: p.score)
+def get_next_player_when_clue_not_answered_correctly(players: List[Player]) -> Player:
+    sorted_by_amount = sorted(players, key=lambda p: p.score)
     return sorted_by_amount[0]
 
 
-async def _next_turn(player_id: str):
+async def _next_turn(next_player: Player):
     global accept_player_buzz, players_buzzed
     accept_player_buzz = True
     players_buzzed = set()
 
-    current_player = players[player_id]
-    waiting_for_player_message = WaitingForPlayerMessage(player_name=current_player.name)
+    waiting_for_player_message = WaitingForPlayerMessage(player_name=next_player.name)
     await socket_handler.send_message("WAITING_FOR_PLAYER_CHOICE", waiting_for_player_message, [host_socket, game_board_socket])
     for player_id, socket in player_sockets.items():
-        if player_id == current_player.id:
+        if player_id == next_player.id:
             await socket_handler.send_message("PLAYER_TURN_START", PlayerTurnStartMessage(), socket)
         else:
             await socket_handler.send_message("WAITING_FOR_PLAYER_CHOICE", waiting_for_player_message, socket)
 
 
-async def _next_round():
-    game_board_state.current_round += 1
+async def _next_round(players: List[Player], game_board: GameBoard):
+    game_board.current_round += 1
 
-    if game_board_state.current_round >= len(game_board_state.rounds):
+    if game_board.current_round >= len(game_board.rounds):
         logger.debug("Game over")
-        await socket_handler.send_message(
-            "GAME_OVER", GameOverMessage(players=list(players.values())), [host_socket, game_board_socket, *player_sockets.values()]
-        )
+        await socket_handler.send_message("GAME_OVER", GameOverMessage(players=players), [host_socket, game_board_socket, *player_sockets.values()])
     else:
-        logger.debug(f"New round: {game_board_state.current_round}")
+        logger.debug(f"New round: {game_board.current_round}")
         await socket_handler.send_message("NEW_ROUND", NewRoundMessage(), game_board_socket)

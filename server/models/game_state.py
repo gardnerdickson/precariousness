@@ -1,12 +1,11 @@
 import re
-
 from typing import Dict, List
 
-from pydantic import Field, validator, root_validator
+from pydantic import Field, root_validator
 
 from server.models import PrecariousnessBaseModel
 
-_NON_ALPHANUMERIC = r'[^A-Za-z0-9\_]'
+_NON_ALPHANUMERIC = r"[^A-Za-z0-9\_]"
 
 
 class Tile(PrecariousnessBaseModel):
@@ -26,7 +25,7 @@ class Category(PrecariousnessBaseModel):
         return values
 
 
-class GameBoardState(PrecariousnessBaseModel):
+class GameBoard(PrecariousnessBaseModel):
     rounds: List[List[Category]] = Field(default_factory=list)
     current_round: int = Field(default=0, alias="currentRound")
 
