@@ -6,10 +6,23 @@ from server.models.game_state import Player
 from server.models import PrecariousnessBaseModel
 
 
+"""
+HTTP models
+"""
+
+
+class GameId(PrecariousnessBaseModel):
+    game_id: str = Field(alias="gameId")
+
+
 class Clue(PrecariousnessBaseModel):
     category_key: str = Field(alias="categoryKey")
     category: Optional[str]
     amount: Optional[str]
+
+
+class ClueWithGameId(GameId, Clue):
+    pass
 
 
 """

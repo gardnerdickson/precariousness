@@ -8,12 +8,11 @@ from json import JSONDecodeError
 from typing import Dict, Optional, List
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from jsonschema import validate
 from pydantic import ValidationError
-from starlette.requests import Request
-from starlette.responses import FileResponse
 
 import server.session as session
 
@@ -29,7 +28,6 @@ from server.models.message import (
     StartGameMessage,
     WaitingForPlayerMessage,
     AllPlayersIn,
-    Clue,
     SelectClueMessage,
     ClueSelectedMessage,
     CategorySelectedMessage,
@@ -43,13 +41,14 @@ from server.models.message import (
     ClueRevealedMessage,
     ClueInfo,
     ClueExpiredMessage,
+    GameId,
+    ClueWithGameId,
 )
 
 load_dotenv()
 
 configure_logging()
 logger = logging.getLogger(__name__)
-
 
 app = FastAPI(title="Precariousness!")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -61,25 +60,25 @@ game_board_socket: Optional[WebSocket] = None
 accept_player_buzz = True
 players_buzzed = set()
 
-
-game_id = session.generate_game_id()
-
 socket_handler = SocketHandler()
 
-
-def initialize_game_board():
-    if "GAME_FILE" not in os.environ:
-        raise KeyError("Environment variable 'GAME_FILE' required.")
-
-    with open(os.environ["GAME_FILE"]) as data_fh, open("server/game_schema.json") as schema_fh:
-        game_data = json.load(data_fh)
-        game_schema = json.load(schema_fh)
-        validate(game_data, game_schema)
-        game_board = GameBoard.parse_obj(game_data)
-        session.save_game_board(game_id, game_board)
+if "GAME_FILE" not in os.environ:
+    raise KeyError("Environment variable 'GAME_FILE' required.")
 
 
-initialize_game_board()
+class RequestError(Exception):
+    def __init__(self, message: str, status_code=500):
+        self.message = message
+        self.status_code = status_code
+
+    def __repr__(self):
+        return self.message
+
+    def __str__(self):
+        return repr(self)
+
+    def to_json_response(self):
+        return JSONResponse(status_code=self.status_code, content={"error": self.message})
 
 
 @app.exception_handler(InvalidPlayerId)
@@ -92,6 +91,11 @@ async def invalid_player_id_handler(_: Request, exc: InvalidPlayerId):
 @app.exception_handler(ValidationError)
 async def validation_error(_: Request, exc: ValidationError):
     return {"error": f"Bad request: {str(exc)}"}
+
+
+@app.exception_handler(RequestError)
+async def bad_request(_: Request, exc: RequestError):
+    return exc.to_json_response()
 
 
 @app.get("/player")
@@ -109,33 +113,67 @@ async def gameboard_init():
     return FileResponse("static/gameboard.html")
 
 
+@app.post("/init_game")
+async def initialize_game():
+    with open(os.environ["GAME_FILE"]) as data_fh, open("server/game_schema.json") as schema_fh:
+        game_data = json.load(data_fh)
+        game_schema = json.load(schema_fh)
+        validate(game_data, game_schema)
+        game_board = GameBoard.parse_obj(game_data)
+        game_id = session.generate_game_id()
+        session.save_game_board(game_id, game_board)
+
+    response = JSONResponse(content={"gameId": game_id})
+    response.set_cookie("game-id", game_id)
+    return response
+
+
 @app.post("/new_player")
-async def register_new_player():
+async def register_new_player(game_id_request: GameId):
+    if not session.game_exists(game_id_request.game_id):
+        raise RequestError(status_code=400, message=f"Game ID \"{game_id_request.game_id}\" does not exist")
+
     new_player_id = str(uuid.uuid4())
     player_sockets[new_player_id] = None
-    return {"playerId": new_player_id}
+    response = JSONResponse(content={"playerId": new_player_id})
+    response.set_cookie("game-id", game_id_request.game_id)
+    return response
+
+
+@app.post("/new_host")
+async def register_host(game_id_request: GameId):
+    if not session.game_exists(game_id_request.game_id):
+        raise RequestError(status_code=400, message=f"Game ID \"{game_id_request.game_id}\" does not exist")
+
+    if session.host_exists(game_id_request.game_id):
+        raise RequestError(status_code=400, message=f"A host for game ID \"{game_id_request.game_id}\" already exists")
+
+    session.save_host(game_id_request.game_id)
+    response = JSONResponse(content={"message": "Host registered"})
+    response.set_cookie("game-id", game_id_request.game_id)
+    return response
 
 
 @app.post("/get_game_board_state")
-async def get_game_board_state():
-    return session.get_game_board(game_id)
+async def get_game_board_state(game_id_request: GameId):
+    return session.get_game_board(game_id_request.game_id)
 
 
 @app.post("/get_players_state")
-async def get_players_state():
-    return session.get_all_players(game_id)
+async def get_players_state(game_id_request: GameId):
+    return session.get_all_players(game_id_request.game_id)
 
 
 @app.post("/mark_answer_used")
-async def mark_answer_used(tile: Clue):
-    game_board = session.get_game_board(game_id)
+async def mark_answer_used(tile: ClueWithGameId):
+    game_board = session.get_game_board(tile.game_id)
     categories = game_board.rounds[game_board.current_round]
     category = next((c for c in categories if c.key == tile.category_key), None)
     if not category:
         raise KeyError(f"Category does not exist: {tile.category_key}")
     category.tiles[tile.amount].answered = True
     logger.info(f"Marked {game_board.current_round} -> {tile.category_key} -> {tile.amount} as used")
-    session.save_game_board(game_id, game_board)
+    session.save_game_board(tile.game_id, game_board)
 
 
 @app.websocket("/player_socket/{player_id}")
@@ -201,7 +239,7 @@ async def handle_exception(websocket: WebSocket, _: Exception):
 
 
 @socket_handler.operation("PLAYER_INIT", PlayerInitMessage)
-async def handle_player_init(inbound_message: PlayerInitMessage, player_id: str):
+async def handle_player_init(game_id: str, inbound_message: PlayerInitMessage, player_id: str):
     new_player = Player(id=player_id, name=inbound_message.player_name, score=0)
     session.save_player(game_id, new_player)
     logger.info(f"Player initialized: {player_id}")
@@ -212,7 +250,7 @@ async def handle_player_init(inbound_message: PlayerInitMessage, player_id: str)
 
 
 @socket_handler.operation("START_GAME", StartGameMessage)
-async def handle_start_game(_: StartGameMessage):
+async def handle_start_game(game_id: str, _: StartGameMessage):
     all_players_in_message = AllPlayersIn()
     await socket_handler.send_message("ALL_PLAYERS_IN", all_players_in_message, game_board_socket)
     players = session.get_all_players(game_id)
@@ -221,18 +259,18 @@ async def handle_start_game(_: StartGameMessage):
 
 
 @socket_handler.operation("SELECT_CATEGORY", SelectCategoryMessage)
-async def handle_category_selected(select_category_message: SelectCategoryMessage, player_id: str):
+async def handle_category_selected(game_id: str, select_category_message: SelectCategoryMessage, player_id: str):
     category_selected_message = CategorySelectedMessage(category_key=select_category_message.category_key)
     await socket_handler.send_message("CATEGORY_SELECTED", category_selected_message, [host_socket, game_board_socket])
 
 
 @socket_handler.operation("DESELECT_CATEGORY", DeselectCategoryMessage)
-async def handle_deselect_category(deselect_category_message: DeselectCategoryMessage, player_id: str):
+async def handle_deselect_category(game_id: str, deselect_category_message: DeselectCategoryMessage, player_id: str):
     await socket_handler.send_message("CATEGORY_DESELECTED", deselect_category_message, [host_socket, game_board_socket])
 
 
 @socket_handler.operation("SELECT_CLUE", SelectClueMessage)
-async def handle_clue_selected(select_clue_message: SelectClueMessage, player_id: str):
+async def handle_clue_selected(game_id: str, select_clue_message: SelectClueMessage, player_id: str):
     game_board = session.get_game_board(game_id)
     categories = game_board.rounds[game_board.current_round]
     category = next((c for c in categories if c.key == select_clue_message.category_key), None)
@@ -244,7 +282,7 @@ async def handle_clue_selected(select_clue_message: SelectClueMessage, player_id
 
 
 @socket_handler.operation("CLUE_REVEALED", ClueRevealedMessage)
-async def handle_clue_revealed(clue_revealed_message: ClueRevealedMessage):
+async def handle_clue_revealed(game_id: str, clue_revealed_message: ClueRevealedMessage):
     game_board = session.get_game_board(game_id)
     tile = game_board.get_tile(clue_revealed_message.category_key, clue_revealed_message.amount)
     await socket_handler.send_message(
@@ -253,7 +291,7 @@ async def handle_clue_revealed(clue_revealed_message: ClueRevealedMessage):
 
 
 @socket_handler.operation("PLAYER_BUZZ", PlayerBuzzMessage)
-async def handle_player_buzz(_: PlayerBuzzMessage, player_id: str):
+async def handle_player_buzz(game_id: str, _: PlayerBuzzMessage, player_id: str):
     player = session.get_player(game_id, player_id)
     player_name = player.name
     global accept_player_buzz
@@ -268,7 +306,7 @@ async def handle_player_buzz(_: PlayerBuzzMessage, player_id: str):
 
 
 @socket_handler.operation("RESPONSE_CORRECT", ResponseCorrectMessage)
-async def handle_response_correct(response_correct_message: ResponseCorrectMessage):
+async def handle_response_correct(game_id: str, response_correct_message: ResponseCorrectMessage):
     players = session.get_all_players(game_id)
     player = next((p for p in players if p.name == response_correct_message.player_name))
     player.score += int(response_correct_message.amount)
@@ -293,7 +331,7 @@ async def handle_response_correct(response_correct_message: ResponseCorrectMessa
 
 
 @socket_handler.operation("RESPONSE_INCORRECT", ResponseIncorrectMessage)
-async def handle_response_incorrect(response_incorrect_message: ResponseIncorrectMessage):
+async def handle_response_incorrect(game_id: str, response_incorrect_message: ResponseIncorrectMessage):
     players = session.get_all_players(game_id)
     player = next((p for p in players if p.name == response_incorrect_message.player_name))
     player.score -= int(response_incorrect_message.amount)
@@ -320,7 +358,7 @@ async def handle_response_incorrect(response_incorrect_message: ResponseIncorrec
 
 
 @socket_handler.operation("CLUE_EXPIRED", ClueExpiredMessage)
-async def handle_clue_expired(clue_expired_message: ClueExpiredMessage):
+async def handle_clue_expired(game_id: str, clue_expired_message: ClueExpiredMessage):
     players = session.get_all_players(game_id)
     game_board = session.get_game_board(game_id)
     tile = game_board.get_tile(clue_expired_message.category_key, clue_expired_message.amount)

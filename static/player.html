@@ -20,17 +20,32 @@
         let playerName = null
         let socketMessageRouter = null
         let gameOver = false
+        let gameId = null
 
         d.addEventListener("DOMContentLoaded", () => {
+
+            d.querySelector("#game-id-submit-button").addEventListener("click", () => {
+                const providedGameId = d.querySelector("#game-id-input").value
+                if (providedGameId.length === 4) {
+                    service.newPlayer(providedGameId).then((response) => {
+                        gameId = providedGameId
+                        initSocket(response.playerId)
+                        hideScreens()
+                        d.querySelector("#game-id-value").innerText = gameId
+                        d.querySelector("#enter-name").style.display = ""
+                    })
+                }
+            })
+
             d.querySelector("#name-submit-button").addEventListener("click", () => {
                 const inputPlayerName = d.querySelector("#name-input").value
                 playerName = inputPlayerName
-                socketMessageRouter.sendMessage("PLAYER_INIT", {"playerName": inputPlayerName})
+                socketMessageRouter.sendMessage("PLAYER_INIT", gameId, {"playerName": inputPlayerName})
                 hideScreens()
             })
 
             d.querySelector("#buzzer").addEventListener("click", () => {
-                socketMessageRouter.sendMessage("PLAYER_BUZZ", {"playerName": playerName})
+                socketMessageRouter.sendMessage("PLAYER_BUZZ", gameId, {"playerName": playerName})
                 hideScreens()
             })
         })
@@ -56,7 +71,7 @@
         function showCategorySelectionButtons() {
             const chooseCategoryContainer = d.querySelector("#choose-category")
             chooseCategoryContainer.innerHTML = ""
-            service.getGameBoardState().then((gameState) => {
+            service.getGameBoardState(gameId).then((gameState) => {
                 const round = gameState.rounds[gameState.currentRound]
                 for (let category of round) {
                     chooseCategoryContainer.innerHTML += categoryButtonTemplate
@@ -69,12 +84,12 @@
 
 
         function categoryClicked(categoryKey) {
-            socketMessageRouter.sendMessage("SELECT_CATEGORY", {"categoryKey": categoryKey})
+            socketMessageRouter.sendMessage("SELECT_CATEGORY", gameId, {"categoryKey": categoryKey})
 
             hideScreens()
             const chooseClueContainer = d.querySelector("#choose-clue")
             chooseClueContainer.innerHTML = ""
-            service.getGameBoardState().then((gameState) => {
+            service.getGameBoardState(gameId).then((gameState) => {
                 const category = gameState.rounds[gameState.currentRound].find((value) => {
                     return value.key === categoryKey
                 })
@@ -96,14 +111,14 @@
 
         function clueClicked(categoryKey, amount) {
             hideScreens()
-            socketMessageRouter.sendMessage("SELECT_CLUE", {"categoryKey": categoryKey, "amount": amount})
+            socketMessageRouter.sendMessage("SELECT_CLUE", gameId, {"categoryKey": categoryKey, "amount": amount})
         }
 
 
         function backClicked(categoryName) {
             hideScreens()
             showCategorySelectionButtons()
-            socketMessageRouter.sendMessage("DESELECT_CATEGORY", {"categoryKey": categoryName})
+            socketMessageRouter.sendMessage("DESELECT_CATEGORY", gameId, {"categoryKey": categoryName})
         }
 
 
@@ -132,11 +147,6 @@
             gameOver = true
         }
 
-
-        service.newPlayer().then((response) => {
-            initSocket(response.playerId)
-        })
-
     </script>
 
     <link rel="stylesheet" href="static/common.css">
@@ -146,11 +156,21 @@
 </head>
 <body>
 
-<div id="enter-name" class="screen hideable">
+<div id="enter-game-id" class="screen hideable">
     <div class="text-row" style="padding-left: 0; padding-right: 0">
-        <input id="name-input" type="text" placeholder="Player name">
+        <input class="player-input" id="game-id-input" type="text" placeholder="Game ID" oninput="this.value = this.value.toUpperCase()">
     </div>
-    <div class="text-row" id="name-submit-button">Submit</div>
+    <div class="text-row player-submit-button" id="game-id-submit-button">Submit</div>
+</div>
+
+<div id="enter-name" class="screen hideable" style="display: none">
+    <div class="text-row" style="padding-left: 0; padding-right: 0">
+        <p id="game-id-value"></p>
+    </div>
+    <div class="text-row" style="padding-left: 0; padding-right: 0">
+        <input class="player-input" id="name-input" type="text" placeholder="Player name">
+    </div>
+    <div class="text-row player-submit-button" id="name-submit-button">Submit</div>
 </div>
 
 <div id="waiting-for-player" class="screen hideable" style="display: none"></div>

@@ -41,8 +41,8 @@ class SocketMessageRouter {
         }
     }
 
-    sendMessage(operation, obj) {
-        const message = {"operation": operation, "payload": obj}
+    sendMessage(operation, gameId, obj) {
+        const message = {"operation": operation, "gameId": gameId, "payload": obj}
         console.debug("Sending message:", message)
         this.websocket.send(JSON.stringify(message))
     }
@@ -50,29 +50,62 @@ class SocketMessageRouter {
 
 
 const service = {
-    newPlayer: function () {
-        return fetch("/new_player", {method: "POST"})
+    headers: {"Content-Type": "application/json"},
+
+    _logAndThrow: function(response, exceptionMessage) {
+        response.json().then((body) => {
+            if (body.hasOwnProperty("error")) {
+                console.error("Error: ", body.error)
+            }
+            throw new Error(exceptionMessage)
+        })
+    },
+
+    newGame: function() {
+        return fetch("/init_game", {method: "POST"})
             .then((response) => {
                 if (!response.ok) {
-                    throw new Error("Failed to register player")
+                    this._logAndThrow(response, "Failed to initialize new game")
                 }
                 return response.json()
             })
     },
-    getGameBoardState: function () {
-        return fetch("/get_game_board_state", {method: "POST"})
+    newHost: function(gameId) {
+        const postBody = {gameId: gameId}
+        return fetch("/new_host", {method: "POST", headers: this.headers, body: JSON.stringify(postBody)})
             .then((response) => {
                 if (!response.ok) {
-                    throw new Error("Failed to get game board")
+                    this._logAndThrow(response, "Failed to register host")
                 }
                 return response.json()
             })
     },
-    getPlayersState: function () {
-        return fetch("/get_players_state", {method: "POST"})
+    newPlayer: function (gameId) {
+        const postBody = {gameId: gameId}
+        return fetch("/new_player", {method: "POST", headers: this.headers, body: JSON.stringify(postBody)})
             .then((response) => {
                 if (!response.ok) {
-                    throw new Error("Failed to get players state")
+                    this._logAndThrow(response, "Failed to register player")
+                }
+                return response.json()
+            })
+    },
+    getGameBoardState: function (gameId) {
+        const postBody = {gameId: gameId}
+        return fetch("/get_game_board_state", {method: "POST", headers: this.headers, body: JSON.stringify(postBody)})
+            .then((response) => {
+                if (!response.ok) {
+                    this._logAndThrow(response, "Failed to get game board")
+                }
+                return response.json()
+            })
+    },
+    getPlayersState: function (gameId) {
+        const postBody = {gameId: gameId}
+        return fetch("/get_players_state", {method: "POST", headers: this.headers, body: JSON.stringify(postBody)})
+            .then((response) => {
+                if (!response.ok) {
+                    this._logAndThrow(response, "Failed to get players state")
                 }
                 return response.json()
             })

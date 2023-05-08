@@ -12,11 +12,23 @@
 
         let socketMessageRouter = null
         let gameBoard = null
+        let gameId = null
 
 
         d.addEventListener("DOMContentLoaded", () => {
             hideScreens()
+            getGameCode()
         })
+
+
+        function getGameCode() {
+            service.newGame().then((response) => {
+                gameId = response.gameId
+                let gameIdElement = d.getElementById("game-id")
+                gameIdElement.innerHTML = "<b>" + gameId + "</b>"
+                gameIdElement.style.display = ""
+            })
+        }
 
 
         function initSocket() {
@@ -86,7 +98,7 @@
 
 
         function handleNewRound(_) {
-            Promise.all([service.getPlayersState(), service.getGameBoardState()])
+            Promise.all([service.getPlayersState(gameId), service.getGameBoardState(gameId)])
                 .then((results) => {
                     const [playersState, gameBoardState] = results
 
@@ -106,10 +118,10 @@
                         playersState,
                         gameBoardCanvas,
                         (categoryKey, amount) => {
-                            socketMessageRouter.sendMessage("CLUE_REVEALED", {"categoryKey": categoryKey, "amount": amount})
+                            socketMessageRouter.sendMessage("CLUE_REVEALED", gameId, {"categoryKey": categoryKey, "amount": amount})
                         },
                         (categoryKey, amount) => {
-                            socketMessageRouter.sendMessage("CLUE_EXPIRED", {"categoryKey": categoryKey, "amount": amount})
+                            socketMessageRouter.sendMessage("CLUE_EXPIRED", gameId, {"categoryKey": categoryKey, "amount": amount})
                         }
                     );
                 })
@@ -125,7 +137,6 @@
             gameBoard.gameOver(payload.players)
         }
 
-
         initSocket()
 
     </script>
@@ -138,6 +149,7 @@
 </head>
 
 <body>
+<div id="game-id" class="screen hideable"></div>
 <div id="waiting-for-player" class="screen hideable"></div>
 <div id="gameboard" class="screen hideable">
     <canvas id="gameboard-canvas"></canvas>

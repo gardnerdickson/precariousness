@@ -8,7 +8,7 @@ ul {
     padding-right: 0;
 }
 
-#name-input {
+.player-input {
     text-align: center;
     height: 50px;
     font-size: 24px;
@@ -17,14 +17,14 @@ ul {
     padding: 0;
 }
 
-#name-submit-button {
+.player-submit-button {
     background-color: #4c566a;
     color: #ffffff;
     padding-top: 15px;
     padding-bottom: 15px;
 }
 
-#name-submit-button:hover {
+.player-submit-button:hover {
     cursor: pointer;
 }
 

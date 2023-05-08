@@ -45,7 +45,7 @@ class SocketHandler:
             logger.info(f"Routing operation: {message.operation}")
             func, model_type = self.operation_handlers[message.operation]
             payload = model_type.parse_obj(message.payload)
-            return await func(payload, **kwargs)
+            return await func(message.game_id, payload, **kwargs)
         except Exception as e:
             await self.handle_error(websocket, e)
 

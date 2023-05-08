@@ -16,6 +16,20 @@
         let gameOver = false
 
 
+        d.addEventListener("DOMContentLoaded", () => {
+            d.querySelector("#game-id-submit-button").addEventListener("click", () => {
+                const providedGameId = d.querySelector("#game-id-input").value
+                if (providedGameId.length === 4) {
+                    service.newHost(providedGameId).then((response) => {
+                        gameId = providedGameId
+                        hideScreens()
+                        d.querySelector("#players-joining").style.display = ""
+                    })
+                }
+            })
+        })
+
+
         function initSocket() {
             let location = window.location
             let ws_url = "ws://" + location.hostname
@@ -36,7 +50,7 @@
 
 
         function allPlayersInClicked() {
-            socketMessageRouter.sendMessage("START_GAME", {})
+            socketMessageRouter.sendMessage("START_GAME", gameId, {})
             initMainHostScreen()
         }
 
@@ -124,7 +138,7 @@
             const playerName = buttonElement.dataset.playerName
             const amount = buttonElement.dataset.amount
             const categoryKey = buttonElement.dataset.categoryKey
-            socketMessageRouter.sendMessage("RESPONSE_CORRECT", {"playerName": playerName, "amount": amount, "categoryKey": categoryKey})
+            socketMessageRouter.sendMessage("RESPONSE_CORRECT", gameId, {"playerName": playerName, "amount": amount, "categoryKey": categoryKey})
         }
 
 
@@ -135,7 +149,7 @@
             const playerName = buttonElement.dataset.playerName
             const amount = buttonElement.dataset.amount
             const categoryKey = buttonElement.dataset.categoryKey
-            socketMessageRouter.sendMessage("RESPONSE_INCORRECT", {"playerName": playerName, "amount": amount, "categoryKey": categoryKey})
+            socketMessageRouter.sendMessage("RESPONSE_INCORRECT", gameId, {"playerName": playerName, "amount": amount, "categoryKey": categoryKey})
         }
 
 
@@ -156,7 +170,15 @@
 
 </head>
 <body>
-<ul id="players-joining" class="screen hideable">
+
+<div id="enter-game-id" class="screen hideable">
+    <div class="text-row" style="padding-left: 0; padding-right: 0">
+        <input class="player-input" id="game-id-input" type="text" placeholder="Game ID" oninput="this.value = this.value.toUpperCase()">
+    </div>
+    <div class="text-row player-submit-button" id="game-id-submit-button">Submit</div>
+</div>
+
+<ul id="players-joining" class="screen hideable" style="display: none">
     <li class="text-row row-button" onclick="allPlayersInClicked()"><p>All Players In</p></li>
 </ul>
 <div id="main" class="screen hideable" style="display: none">

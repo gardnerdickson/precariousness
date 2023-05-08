@@ -24,6 +24,10 @@ def _all_players_prefix(game_id: str):
     return f"{game_id}:player:*"
 
 
+def _host_key(game_id: str):
+    return f"{game_id}:host"
+
+
 def generate_game_id():
     code = []
     for _ in range(_GAME_CODE_LENGTH):
@@ -37,8 +41,12 @@ def get_game_board(game_id: str) -> GameBoard:
     return GameBoard.parse_raw(raw_record)
 
 
-def save_game_board(game_id: str, game_board: GameBoard):
+def save_game_board(game_id: str, game_board: GameBoard) -> None:
     _session_db.set(_game_board_key(game_id), game_board.json())
+
+
+def game_exists(game_id: str) -> bool:
+    return _session_db.exists(_game_board_key(game_id)) != 0
 
 
 def get_player(game_id: str, player_id: str) -> Player:
@@ -53,3 +61,11 @@ def get_all_players(game_id: str) -> List[Player]:
 
 def save_player(game_id: str, player: Player) -> None:
     _session_db.set(_player_key(game_id, player.id), player.json())
+
+
+def save_host(game_id: str) -> None:
+    _session_db.set(_host_key(game_id), 1)
+
+
+def host_exists(game_id: str) -> bool:
+    return _session_db.exists(_host_key(game_id)) != 0
