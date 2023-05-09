@@ -1,21 +1,19 @@
 import json
 import logging
-import os
 import random
 import sys
 import uuid
 from json import JSONDecodeError
 from typing import Dict, Optional, List
 
-from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from jsonschema import validate
 from pydantic import ValidationError
 
+import server.config as config
 import server.session as session
-
 from server.exceptions import InvalidPlayerId, InvalidOperation
 from server.handler import SocketHandler
 from server.log import configure_logging
@@ -45,8 +43,6 @@ from server.models.message import (
     ClueWithGameId,
 )
 
-load_dotenv()
-
 configure_logging()
 logger = logging.getLogger(__name__)
 
@@ -61,9 +57,6 @@ accept_player_buzz = True
 players_buzzed = set()
 
 socket_handler = SocketHandler()
-
-if "GAME_FILE" not in os.environ:
-    raise KeyError("Environment variable 'GAME_FILE' required.")
 
 
 class RequestError(Exception):
@@ -115,7 +108,7 @@ async def gameboard_init():
 
 @app.post("/init_game")
 async def initialize_game():
-    with open(os.environ["GAME_FILE"]) as data_fh, open("server/game_schema.json") as schema_fh:
+    with open(config.GAME_FILE) as data_fh, open("server/game_schema.json") as schema_fh:
         game_data = json.load(data_fh)
         game_schema = json.load(schema_fh)
         validate(game_data, game_schema)

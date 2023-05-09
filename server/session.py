@@ -3,9 +3,10 @@ from typing import List
 
 import redis
 
+import server.config as config
 from server.models.game_state import GameBoard, Player
 
-_session_db = redis.StrictRedis("localhost", 6379, charset="utf-8", decode_responses=True)
+_session_db = redis.StrictRedis(config.REDIS_HOST, int(config.REDIS_PORT), charset="utf-8", decode_responses=True)
 
 
 _GAME_CODE_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
