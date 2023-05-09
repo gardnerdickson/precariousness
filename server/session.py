@@ -9,7 +9,7 @@ from server.models.game_state import GameBoard, Player
 _session_db = redis.StrictRedis(config.REDIS_HOST, int(config.REDIS_PORT), charset="utf-8", decode_responses=True)
 
 
-_GAME_CODE_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+_GAME_CODE_CHARACTERS = "BCDFGHJKLMNPQRSTVWXZ"
 _GAME_CODE_LENGTH = 4
 
 
