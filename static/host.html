@@ -7,7 +7,7 @@
 
         const playerJoinedTemplate = "<li class=\"text-row row-label\"><p>${PLAYER_NAME}</p></li>"
         const mainTextTemplate = "<p>${TEXT}</p>"
-        const playerTemplate = "<li id=\"${PLAYER_NAME}\" class=\"text-row row-label player-list-item\"><p>${PLAYER_NAME}</p></li>"
+        const playerTemplate = "<li id=\"${PLAYER_ID}\" class=\"text-row row-label player-list-item\"><p>${PLAYER_NAME}</p></li>"
 
         const d = document
         const players = new Map()
@@ -56,7 +56,7 @@
 
 
         function handlePlayerJoined(payload) {
-            players.set(payload.playerName, payload.playerScore)
+            players.set(payload.playerId, {"name": payload.playerName, "score": payload.playerScore})
             const playersJoining = d.querySelector("#players-joining")
             playersJoining.innerHTML = playerJoinedTemplate.replaceAll("${PLAYER_NAME}", payload.playerName) + playersJoining.innerHTML
         }
@@ -94,13 +94,13 @@
 
 
         function handlePlayerBuzzed(payload) {
-            const playerName = payload.playerName
-            const playerSummaryItem = d.querySelector("#" + playerName)
+            const playerId = payload.playerId
+            const playerSummaryItem = d.querySelector("#" + playerId)
             playerSummaryItem.classList.add("buzzed")
             d.querySelector("#response-correct-button").classList.remove("button-disabled")
-            d.querySelector("#response-correct-button").dataset.playerName = playerName
+            d.querySelector("#response-correct-button").dataset.playerId = playerId
             d.querySelector("#response-incorrect-button").classList.remove("button-disabled")
-            d.querySelector("#response-incorrect-button").dataset.playerName = playerName
+            d.querySelector("#response-incorrect-button").dataset.playerId = playerId
         }
 
 
@@ -113,8 +113,8 @@
                     item.classList.remove("buzzed")
                 })
             } else {
-                if (payload.playerName !== null) {
-                    d.querySelector("#" + payload.playerName).classList.remove("buzzed")
+                if (payload.playerId !== null) {
+                    d.querySelector("#" + payload.playerId).classList.remove("buzzed")
                 }
             }
         }
@@ -124,8 +124,8 @@
             hideScreens()
             const main = d.querySelector("#main")
             const playerList = d.querySelector("#player-list")
-            players.forEach((_, name) => {
-                playerList.innerHTML += playerTemplate.replaceAll("${PLAYER_NAME}", name)
+            players.forEach((player, id) => {
+                playerList.innerHTML += playerTemplate.replaceAll("${PLAYER_ID}", id).replaceAll("${PLAYER_NAME}", player.name)
             })
             main.style.display = ""
         }
@@ -135,10 +135,10 @@
             if (buttonElement.classList.contains("button-disabled")) {
                 return;
             }
-            const playerName = buttonElement.dataset.playerName
+            const playerId = buttonElement.dataset.playerId
             const amount = buttonElement.dataset.amount
             const categoryKey = buttonElement.dataset.categoryKey
-            socketMessageRouter.sendMessage("RESPONSE_CORRECT", gameId, {"playerName": playerName, "amount": amount, "categoryKey": categoryKey})
+            socketMessageRouter.sendMessage("RESPONSE_CORRECT", gameId, {"playerId": playerId, "amount": amount, "categoryKey": categoryKey})
         }
 
 
@@ -146,10 +146,10 @@
             if (buttonElement.classList.contains("button-disabled")) {
                 return;
             }
-            const playerName = buttonElement.dataset.playerName
+            const playerId = buttonElement.dataset.playerId
             const amount = buttonElement.dataset.amount
             const categoryKey = buttonElement.dataset.categoryKey
-            socketMessageRouter.sendMessage("RESPONSE_INCORRECT", gameId, {"playerName": playerName, "amount": amount, "categoryKey": categoryKey})
+            socketMessageRouter.sendMessage("RESPONSE_INCORRECT", gameId, {"playerId": playerId, "amount": amount, "categoryKey": categoryKey})
         }
 
 

@@ -40,7 +40,7 @@ class PlayerChooseAnswerMessage(PrecariousnessBaseModel):
 
 
 class PlayerBuzzMessage(PrecariousnessBaseModel):
-    player_name: str = Field(alias="playerName")
+    player_id: str = Field(alias="playerId")
     clue_id: str = Field(alias="clueId")
 
 
@@ -65,11 +65,11 @@ class ClueRevealedMessage(Clue):
 
 
 class ResponseCorrectMessage(Clue):
-    player_name: str = Field(alias="playerName")
+    player_id: str = Field(alias="playerId")
 
 
 class ResponseIncorrectMessage(Clue):
-    player_name: str = Field(alias="playerName")
+    player_id: str = Field(alias="playerId")
 
 
 class ClueExpiredMessage(Clue):
@@ -86,6 +86,7 @@ Outbound socket communication models
 
 
 class PlayerJoinedMessage(PrecariousnessBaseModel):
+    player_id: str = Field(alias="playerId")
     player_name: str = Field(alias="playerName")
     player_score: int = Field(alias="playerScore")
 
@@ -108,7 +109,7 @@ class ClueSelectedMessage(Clue):
 
 class ClueAnswered(Clue):
     answered_correctly: bool = Field(alias="answeredCorrectly")
-    player_name: Optional[str] = Field(alias="playerName")
+    player_id: Optional[str] = Field(alias="playerId")
 
 
 class ClueInfo(PrecariousnessBaseModel):

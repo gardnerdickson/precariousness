@@ -232,9 +232,9 @@ async def handle_exception(websocket: WebSocket, _: Exception):
 async def handle_player_init(game_id: str, inbound_message: PlayerInitMessage, player_id: str):
     new_player = Player(id=player_id, name=inbound_message.player_name, score=0)
     session.save_player(game_id, new_player)
-    logger.info(f"Player initialized: {player_id}")
+    logger.info(f"Player initialized: ({new_player.name}){player_id}")
 
-    outbound_message = PlayerJoinedMessage(player_name=inbound_message.player_name, player_score=0)
+    outbound_message = PlayerJoinedMessage(player_id=player_id, player_name=inbound_message.player_name, player_score=0)
     await socket_handler.send_message("PLAYER_JOINED", outbound_message, host_socket)
     await socket_handler.send_message("PLAYER_JOINED", outbound_message, game_board_socket)
 
@@ -293,17 +293,18 @@ async def handle_player_buzz(game_id: str, buzz_message: PlayerBuzzMessage, play
         session.add_player_buzz(game_id, clue_id, player_id)
         await socket_handler.send_message(
             "PLAYER_BUZZED",
-            PlayerBuzzMessage(player_name=buzz_message.player_name, clue_id=clue_id),
+            PlayerBuzzMessage(player_id=buzz_message.player_id, clue_id=clue_id),
             [host_socket, game_board_socket, *player_sockets.values()]
         )
     else:
-        logger.info(f"Player {buzz_message.player_name} buzzed too late.")
+        logger.info(f"Player {buzz_message.player_id} buzzed too late.")
 
 
 @socket_handler.operation("RESPONSE_CORRECT", ResponseCorrectMessage)
 async def handle_response_correct(game_id: str, response_correct_message: ResponseCorrectMessage):
     players = session.get_all_players(game_id)
-    player = next((p for p in players if p.name == response_correct_message.player_name))
+
+    player = next((p for p in players if p.id == response_correct_message.player_id))
     player.score += int(response_correct_message.amount)
     session.save_player(game_id, player)
 
@@ -312,7 +313,7 @@ async def handle_response_correct(game_id: str, response_correct_message: Respon
     tile.answered = True
 
     clue_answered_message = ClueAnswered(
-        category_key=response_correct_message.category_key, amount=response_correct_message.amount, answered_correctly=True, player_name=player.name
+        category_key=response_correct_message.category_key, amount=response_correct_message.amount, answered_correctly=True, player_id=player.id
     )
     await socket_handler.send_message("CLUE_ANSWERED", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
     await socket_handler.send_message("TURN_OVER", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
@@ -328,7 +329,7 @@ async def handle_response_correct(game_id: str, response_correct_message: Respon
 @socket_handler.operation("RESPONSE_INCORRECT", ResponseIncorrectMessage)
 async def handle_response_incorrect(game_id: str, response_incorrect_message: ResponseIncorrectMessage):
     players = session.get_all_players(game_id)
-    player = next((p for p in players if p.name == response_incorrect_message.player_name))
+    player = next((p for p in players if p.id == response_incorrect_message.player_id))
     player.score -= int(response_incorrect_message.amount)
     global accept_player_buzz
     accept_player_buzz = True
@@ -341,7 +342,7 @@ async def handle_response_incorrect(game_id: str, response_incorrect_message: Re
     session.save_game_board(game_id, game_board)
 
     clue_answered_message = ClueAnswered(
-        category_key=response_incorrect_message.category_key, amount=response_incorrect_message.amount, answered_correctly=False, player_name=player.name
+        category_key=response_incorrect_message.category_key, amount=response_incorrect_message.amount, answered_correctly=False, player_id=player.id
     )
     await socket_handler.send_message("CLUE_ANSWERED", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
     await socket_handler.send_message("PLAYER_STATE_CHANGED", players, [host_socket, game_board_socket, *player_sockets.values()])
