@@ -53,9 +53,6 @@ player_sockets: Dict[str, Optional[WebSocket]] = {}
 host_socket: Optional[WebSocket] = None
 game_board_socket: Optional[WebSocket] = None
 
-accept_player_buzz = True
-players_buzzed = set()
-
 socket_handler = SocketHandler()
 
 
@@ -279,23 +276,28 @@ async def handle_clue_revealed(game_id: str, clue_revealed_message: ClueRevealed
     game_board = session.get_game_board(game_id)
     tile = game_board.get_tile(clue_revealed_message.category_key, clue_revealed_message.amount)
     await socket_handler.send_message(
-        "CLUE_REVEALED", ClueInfo(clue=tile.clue, correct_response=tile.correct_response), [host_socket, *player_sockets.values()]
+        "CLUE_REVEALED",
+        ClueInfo(
+            clue=tile.clue,
+            correct_response=tile.correct_response,
+            clue_id=tile.id
+        ),
+        [host_socket, *player_sockets.values()]
     )
 
 
 @socket_handler.operation("PLAYER_BUZZ", PlayerBuzzMessage)
-async def handle_player_buzz(game_id: str, _: PlayerBuzzMessage, player_id: str):
-    player = session.get_player(game_id, player_id)
-    player_name = player.name
-    global accept_player_buzz
-    if accept_player_buzz and player_id not in players_buzzed:
-        logger.info(f"{player_name} was the first to buzz")
-        accept_player_buzz = False
-        players_buzzed.add(player_id)
-        player_buzz_message = PlayerBuzzMessage(player_name=player_name)
-        await socket_handler.send_message("PLAYER_BUZZED", player_buzz_message, [host_socket, game_board_socket, *player_sockets.values()])
+async def handle_player_buzz(game_id: str, buzz_message: PlayerBuzzMessage, player_id: str):
+    clue_id = buzz_message.clue_id
+    if session.check_buzz_lock(game_id, clue_id):
+        session.add_player_buzz(game_id, clue_id, player_id)
+        await socket_handler.send_message(
+            "PLAYER_BUZZED",
+            PlayerBuzzMessage(player_name=buzz_message.player_name, clue_id=clue_id),
+            [host_socket, game_board_socket, *player_sockets.values()]
+        )
     else:
-        logger.info(f"Player {player_name} buzzed too late.")
+        logger.info(f"Player {buzz_message.player_name} buzzed too late.")
 
 
 @socket_handler.operation("RESPONSE_CORRECT", ResponseCorrectMessage)
@@ -344,6 +346,9 @@ async def handle_response_incorrect(game_id: str, response_incorrect_message: Re
     await socket_handler.send_message("CLUE_ANSWERED", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
     await socket_handler.send_message("PLAYER_STATE_CHANGED", players, [host_socket, game_board_socket, *player_sockets.values()])
 
+    session.reset_buzz_lock(game_id, tile.id)
+
+    players_buzzed = session.get_players_buzzed(game_id, tile.id)
     if len(players_buzzed) == len(players):
         await socket_handler.send_message("TURN_OVER", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
         next_player = get_next_player_when_clue_not_answered_correctly(players)
@@ -376,10 +381,6 @@ def get_next_player_when_clue_not_answered_correctly(players: List[Player]) -> P
 
 
 async def _next_turn(next_player: Player):
-    global accept_player_buzz, players_buzzed
-    accept_player_buzz = True
-    players_buzzed = set()
-
     waiting_for_player_message = WaitingForPlayerMessage(player_name=next_player.name)
     await socket_handler.send_message("WAITING_FOR_PLAYER_CHOICE", waiting_for_player_message, [host_socket, game_board_socket])
     for player_id, socket in player_sockets.items():

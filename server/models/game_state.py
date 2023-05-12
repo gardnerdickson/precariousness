@@ -9,6 +9,7 @@ _NON_ALPHANUMERIC = r"[^A-Za-z0-9\_]"
 
 
 class Tile(PrecariousnessBaseModel):
+    id: str
     clue: str
     correct_response: str
     answered: bool = False
@@ -28,6 +29,14 @@ class Category(PrecariousnessBaseModel):
 class GameBoard(PrecariousnessBaseModel):
     rounds: List[List[Category]] = Field(default_factory=list)
     current_round: int = Field(default=0, alias="currentRound")
+
+    @root_validator(pre=True)
+    def pre_process(cls, values: dict) -> dict:
+        for game_round_num, game_round in enumerate(values["rounds"]):
+            for category_num, category in enumerate(game_round):
+                for amount, tile in category["tiles"].items():
+                    tile["id"] = f"{game_round_num}_{category_num}_{amount}"
+        return values
 
     def get_tile(self, category_key: str, amount: str) -> Tile:
         categories = self.rounds[self.current_round]

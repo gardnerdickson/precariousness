@@ -41,6 +41,7 @@ class PlayerChooseAnswerMessage(PrecariousnessBaseModel):
 
 class PlayerBuzzMessage(PrecariousnessBaseModel):
     player_name: str = Field(alias="playerName")
+    clue_id: str = Field(alias="clueId")
 
 
 class StartGameMessage(PrecariousnessBaseModel):
@@ -113,6 +114,7 @@ class ClueAnswered(Clue):
 class ClueInfo(PrecariousnessBaseModel):
     clue: str = Field(alias="clue")
     correct_response: str = Field(alias="correctResponse")
+    clue_id: str = Field(alias="clueId")
 
 
 class AllPlayersIn(PrecariousnessBaseModel):

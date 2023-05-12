@@ -45,7 +45,9 @@
             })
 
             d.querySelector("#buzzer").addEventListener("click", () => {
-                socketMessageRouter.sendMessage("PLAYER_BUZZ", gameId, {"playerName": playerName})
+                const clueId = d.querySelector("#buzzer").dataset.clueId
+                console.log("")
+                socketMessageRouter.sendMessage("PLAYER_BUZZ", gameId, {"playerName": playerName, "clueId": clueId})
                 hideScreens()
             })
         })
@@ -64,6 +66,7 @@
             socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)
             socketMessageRouter.addRoute("PLAYER_TURN_START", handlePlayerTurnStart)
             socketMessageRouter.addRoute("CLUE_REVEALED", handleClueRevealed)
+            socketMessageRouter.addRoute("CLUE_ANSWERED", handleClueAnswered)
             socketMessageRouter.addRoute("GAME_OVER", handleGameOver)
         }
 
@@ -136,9 +139,18 @@
         }
 
 
-        function handleClueRevealed(payload) {
+        function handleClueRevealed(clueInfo) {
             hideScreens()
+            console.log("clue info", clueInfo)
+            d.querySelector("#buzzer").dataset.clueId = clueInfo.clueId
             d.querySelector("#buzzer-wrapper").style.display = ""
+        }
+
+
+        function handleClueAnswered(answerInfo) {
+            if (!answerInfo.answeredCorrectly && answerInfo.playerName !== playerName) {
+                d.querySelector("#buzzer-wrapper").style.display = ""
+            }
         }
 
 
