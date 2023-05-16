@@ -4,7 +4,6 @@ import random
 import sys
 import uuid
 from json import JSONDecodeError
-from typing import List
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import JSONResponse, FileResponse
@@ -15,7 +14,7 @@ from pydantic import ValidationError
 import server.config as config
 import server.session as session
 from server.exceptions import InvalidPlayerId, InvalidOperation
-from server.handler import SocketHandler, register_socket_route, player_channel, host_channel, gameboard_channel, publish_message
+from server.socket import SocketHandler, register_socket_route, player_channel, host_channel, gameboard_channel, publish_message
 from server.log import configure_logging
 from server.models.game_state import GameBoard, Player
 from server.models.message import (
@@ -415,7 +414,7 @@ async def handle_clue_expired(game_id: str, clue_expired_message: ClueExpiredMes
     await _next_turn(next_player, game_id)
 
 
-def get_next_player_when_clue_not_answered_correctly(players: List[Player]) -> Player:
+def get_next_player_when_clue_not_answered_correctly(players: list[Player]) -> Player:
     sorted_by_amount = sorted(players, key=lambda p: p.score)
     return sorted_by_amount[0]
 
@@ -431,7 +430,7 @@ async def _next_turn(next_player: Player, game_id: str):
             await publish_message(game_id, "WAITING_FOR_PLAYER_CHOICE", waiting_for_player_message, player_channel(game_id, player.id))
 
 
-async def _next_round(players: List[Player], game_board: GameBoard, game_id: str):
+async def _next_round(players: list[Player], game_board: GameBoard, game_id: str):
     game_board.current_round += 1
 
     if game_board.current_round >= len(game_board.rounds):

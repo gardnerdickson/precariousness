@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from typing import Type, List, Dict
+from typing import Type
 
 import redis.asyncio as redis
 from starlette.websockets import WebSocket
@@ -13,8 +13,8 @@ from server.models import PrecariousnessBaseModel, SocketMessage
 logger = logging.getLogger(__name__)
 
 
-redis_client = redis.StrictRedis.from_url(f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}")
-redis_pubsub = redis_client.pubsub()
+_redis_client = redis.StrictRedis.from_url(f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}")
+_redis_pubsub = _redis_client.pubsub()
 
 
 class SocketHandler:
@@ -64,7 +64,7 @@ class SocketHandler:
         raise exc
 
 
-def player_channel(game_id: str, player_ids: List[str] | str) -> List[str] | str:
+def player_channel(game_id: str, player_ids: str | list[str]) -> str | list[str]:
     if not isinstance(player_ids, list):
         player_ids = [player_ids]
 
@@ -80,29 +80,29 @@ def gameboard_channel(game_id: str) -> str:
     return f"{game_id}:channel:gameboard"
 
 
-sockets: Dict[str, WebSocket] = {}
-routing_task = None
+_sockets: dict[str, WebSocket] = {}
+_routing_task = None
 
 
 async def _route_messages():
     while True:
-        channel_data = await redis_pubsub.get_message(ignore_subscribe_messages=True)
+        channel_data = await _redis_pubsub.get_message(ignore_subscribe_messages=True)
         if channel_data is not None:
             channel = channel_data["channel"].decode()
-            await sockets[channel].send_text(channel_data["data"])
+            await _sockets[channel].send_text(channel_data["data"])
 
 
 async def register_socket_route(channel: str, websocket: WebSocket):
-    await redis_pubsub.subscribe(channel)
-    sockets[channel] = websocket
+    await _redis_pubsub.subscribe(channel)
+    _sockets[channel] = websocket
     logger.info(f"Registered websocket for channel \"{channel}\"")
 
-    global routing_task
-    if not routing_task:
-        routing_task = asyncio.create_task(_route_messages())
+    global _routing_task
+    if not _routing_task:
+        _routing_task = asyncio.create_task(_route_messages())
 
 
-async def publish_message(game_id: str, operation: str, message: PrecariousnessBaseModel | List[PrecariousnessBaseModel], channels: str | List[str]):
+async def publish_message(game_id: str, operation: str, message: PrecariousnessBaseModel | list[PrecariousnessBaseModel], channels: str | list[str]):
     if isinstance(message, list):
         message = [m.dict(by_alias=True) for m in message]
         data = SocketMessage(operation=operation, payload=message, game_id=game_id).dict(by_alias=True)
@@ -112,4 +112,4 @@ async def publish_message(game_id: str, operation: str, message: PrecariousnessB
         channels = [channels]
 
     for channel in channels:
-        await redis_client.publish(channel, json.dumps(data))
+        await _redis_client.publish(channel, json.dumps(data))

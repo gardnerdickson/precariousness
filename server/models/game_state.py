@@ -1,5 +1,4 @@
 import re
-from typing import Dict, List
 
 from pydantic import Field, root_validator
 
@@ -17,7 +16,7 @@ class Tile(PrecariousnessBaseModel):
 
 class Category(PrecariousnessBaseModel):
     name: str
-    tiles: Dict[str, Tile]
+    tiles: dict[str, Tile]
     key: str
 
     @root_validator(pre=True)
@@ -27,7 +26,7 @@ class Category(PrecariousnessBaseModel):
 
 
 class GameBoard(PrecariousnessBaseModel):
-    rounds: List[List[Category]] = Field(default_factory=list)
+    rounds: list[list[Category]] = Field(default_factory=list)
     current_round: int = Field(default=0, alias="currentRound")
 
     @root_validator(pre=True)
@@ -45,7 +44,7 @@ class GameBoard(PrecariousnessBaseModel):
             raise KeyError(f"Category does not exist: {category}")
         return category.tiles[amount]
 
-    def get_remaining_tiles(self) -> List[Tile]:
+    def get_remaining_tiles(self) -> list[Tile]:
         remaining_answers = []
         categories = self.rounds[self.current_round]
         for category in categories:

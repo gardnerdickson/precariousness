@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Union, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -10,5 +10,5 @@ class PrecariousnessBaseModel(BaseModel):
 
 class SocketMessage(PrecariousnessBaseModel):
     operation: str
-    payload: Union[List[Any], Dict[str, Any]] = {}
+    payload: list[Any] | dict[str, Any] = {}
     game_id: Optional[str] = Field(alias="gameId")

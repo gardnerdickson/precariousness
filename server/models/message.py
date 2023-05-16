@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional
 
 from pydantic import Field
 
@@ -127,4 +127,4 @@ class NewRoundMessage(PrecariousnessBaseModel):
 
 
 class GameOverMessage(PrecariousnessBaseModel):
-    players: List[Player]
+    players: list[Player]

@@ -1,5 +1,4 @@
 import random
-from typing import List
 
 import redis
 
@@ -68,7 +67,7 @@ def get_player(game_id: str, player_id: str) -> Player:
     return Player.parse_raw(record)
 
 
-def get_all_players(game_id: str) -> List[Player]:
+def get_all_players(game_id: str) -> list[Player]:
     keys = [k for k in _session_db.scan_iter(_all_players_prefix(game_id))]
     return [Player.parse_raw(p) for p in _session_db.mget(keys)]
 
@@ -82,7 +81,7 @@ def add_player_buzz(game_id: str, clue_id: str, player_id: str) -> None:
     _session_db.expire(_players_buzzed_key(game_id, clue_id), time=_SESSION_EXPIRY)
 
 
-def get_players_buzzed(game_id: str, clue_id: str) -> List[str]:
+def get_players_buzzed(game_id: str, clue_id: str) -> list[str]:
     return _session_db.smembers(_players_buzzed_key(game_id, clue_id))
 
 
