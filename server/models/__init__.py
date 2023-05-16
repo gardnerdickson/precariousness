@@ -8,7 +8,7 @@ class PrecariousnessBaseModel(BaseModel):
         allow_population_by_field_name = True
 
 
-class SocketMessage(BaseModel):
+class SocketMessage(PrecariousnessBaseModel):
     operation: str
     payload: Union[List[Any], Dict[str, Any]] = {}
     game_id: Optional[str] = Field(alias="gameId")

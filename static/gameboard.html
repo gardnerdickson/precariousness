@@ -27,17 +27,18 @@
                 let gameIdElement = d.getElementById("game-id")
                 gameIdElement.innerHTML = "<b>" + gameId + "</b>"
                 gameIdElement.style.display = ""
+                initSocket(gameId)
             })
         }
 
 
-        function initSocket() {
+        function initSocket(gameId) {
             let location = window.location
             let ws_url = "ws://" + location.hostname
             if (location.port !== "") {
                 ws_url += ":" + location.port
             }
-            ws_url += "/gameboard_socket"
+            ws_url += "/gameboard_socket/" + gameId
             console.log("Opening gameboard socket")
             socketMessageRouter = new SocketMessageRouter(ws_url)
             socketMessageRouter.addRoute("ALL_PLAYERS_IN", handleNewRound)
@@ -137,7 +138,6 @@
             gameBoard.gameOver(payload.players)
         }
 
-        initSocket()
 
     </script>
 

@@ -20,23 +20,27 @@
             d.querySelector("#game-id-submit-button").addEventListener("click", () => {
                 const providedGameId = d.querySelector("#game-id-input").value
                 if (providedGameId.length === 4) {
-                    service.newHost(providedGameId).then((response) => {
+                    service.newHost(providedGameId).then((players) => {
+                        initSocket(providedGameId)
                         gameId = providedGameId
                         hideScreens()
                         d.querySelector("#players-joining").style.display = ""
+                        players.forEach((player) => {
+                            handlePlayerJoined({"playerId": player.id, "playerName": player.name, "playerScore": player.score})
+                        })
                     })
                 }
             })
         })
 
 
-        function initSocket() {
+        function initSocket(gameId) {
             let location = window.location
             let ws_url = "ws://" + location.hostname
             if (location.port !== "") {
                 ws_url += ":" + location.port
             }
-            ws_url += "/host_socket"
+            ws_url += "/host_socket/" + gameId
             console.log("Opening host socket")
             socketMessageRouter = new SocketMessageRouter(ws_url)
             socketMessageRouter.addRoute("PLAYER_JOINED", handlePlayerJoined)
@@ -93,8 +97,18 @@
         }
 
 
+        function formatPlayerIdForDom(playerId) {
+            return "p_ID_" + playerId
+        }
+
+
+        function unformatPlayerIdForDom(playerId) {
+            return playerId.replace("p_ID_", "")
+        }
+
+
         function handlePlayerBuzzed(payload) {
-            const playerId = payload.playerId
+            const playerId = formatPlayerIdForDom(payload.playerId)
             const playerSummaryItem = d.querySelector("#" + playerId)
             playerSummaryItem.classList.add("buzzed")
             d.querySelector("#response-correct-button").classList.remove("button-disabled")
@@ -114,7 +128,8 @@
                 })
             } else {
                 if (payload.playerId !== null) {
-                    d.querySelector("#" + payload.playerId).classList.remove("buzzed")
+                    const domPlayerId = formatPlayerIdForDom(payload.playerId)
+                    d.querySelector("#" + domPlayerId).classList.remove("buzzed")
                 }
             }
         }
@@ -125,7 +140,8 @@
             const main = d.querySelector("#main")
             const playerList = d.querySelector("#player-list")
             players.forEach((player, id) => {
-                playerList.innerHTML += playerTemplate.replaceAll("${PLAYER_ID}", id).replaceAll("${PLAYER_NAME}", player.name)
+                const domPlayerId = formatPlayerIdForDom(id)
+                playerList.innerHTML += playerTemplate.replaceAll("${PLAYER_ID}", domPlayerId).replaceAll("${PLAYER_NAME}", player.name)
             })
             main.style.display = ""
         }
@@ -135,7 +151,7 @@
             if (buttonElement.classList.contains("button-disabled")) {
                 return;
             }
-            const playerId = buttonElement.dataset.playerId
+            const playerId = unformatPlayerIdForDom(buttonElement.dataset.playerId)
             const amount = buttonElement.dataset.amount
             const categoryKey = buttonElement.dataset.categoryKey
             socketMessageRouter.sendMessage("RESPONSE_CORRECT", gameId, {"playerId": playerId, "amount": amount, "categoryKey": categoryKey})
@@ -146,7 +162,7 @@
             if (buttonElement.classList.contains("button-disabled")) {
                 return;
             }
-            const playerId = buttonElement.dataset.playerId
+            const playerId = unformatPlayerIdForDom(buttonElement.dataset.playerId)
             const amount = buttonElement.dataset.amount
             const categoryKey = buttonElement.dataset.categoryKey
             socketMessageRouter.sendMessage("RESPONSE_INCORRECT", gameId, {"playerId": playerId, "amount": amount, "categoryKey": categoryKey})
@@ -157,9 +173,6 @@
             hideScreens()
             gameOver = true
         }
-
-
-        initSocket()
 
     </script>
 

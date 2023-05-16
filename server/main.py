@@ -4,7 +4,7 @@ import random
 import sys
 import uuid
 from json import JSONDecodeError
-from typing import Dict, Optional, List
+from typing import List
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import JSONResponse, FileResponse
@@ -15,7 +15,7 @@ from pydantic import ValidationError
 import server.config as config
 import server.session as session
 from server.exceptions import InvalidPlayerId, InvalidOperation
-from server.handler import SocketHandler
+from server.handler import SocketHandler, register_socket_route, player_channel, host_channel, gameboard_channel, publish_message
 from server.log import configure_logging
 from server.models.game_state import GameBoard, Player
 from server.models.message import (
@@ -48,10 +48,6 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Precariousness!")
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
-player_sockets: Dict[str, Optional[WebSocket]] = {}
-host_socket: Optional[WebSocket] = None
-game_board_socket: Optional[WebSocket] = None
 
 socket_handler = SocketHandler()
 
@@ -124,7 +120,6 @@ async def register_new_player(game_id_request: GameId):
         raise RequestError(status_code=400, message=f"Game ID \"{game_id_request.game_id}\" does not exist")
 
     new_player_id = str(uuid.uuid4())
-    player_sockets[new_player_id] = None
     response = JSONResponse(content={"playerId": new_player_id})
     response.set_cookie("game-id", game_id_request.game_id)
     return response
@@ -134,12 +129,12 @@ async def register_new_player(game_id_request: GameId):
 async def register_host(game_id_request: GameId):
     if not session.game_exists(game_id_request.game_id):
         raise RequestError(status_code=400, message=f"Game ID \"{game_id_request.game_id}\" does not exist")
-
     if session.host_exists(game_id_request.game_id):
         raise RequestError(status_code=400, message=f"A host for game ID \"{game_id_request.game_id}\" already exists")
-
     session.save_host(game_id_request.game_id)
-    response = JSONResponse(content={"message": "Host registered"})
+
+    players = session.get_all_players(game_id_request.game_id)
+    response = JSONResponse(content=[p.dict(by_alias=True) for p in players])
     response.set_cookie("game-id", game_id_request.game_id)
     return response
 
@@ -166,38 +161,37 @@ async def mark_answer_used(tile: ClueWithGameId):
     session.save_game_board(tile.game_id, game_board)
 
 
-@app.websocket("/player_socket/{player_id}")
-async def init_player_socket(websocket: WebSocket, player_id: str):
-    if player_id not in player_sockets:
-        raise InvalidPlayerId(player_id)
+@app.websocket("/player_socket/{game_id}/{player_id}")
+async def init_player_socket(websocket: WebSocket, game_id, player_id: str):
     await websocket.accept()
-    player_sockets[player_id] = websocket
+    await register_socket_route(player_channel(game_id, player_id), websocket)
     try:
         while True:
             await socket_handler.handle_operation(websocket, player_id=player_id)
     except WebSocketDisconnect:
-        del player_sockets[player_id]
+        logger.error(f"Player {player_id} disconnected")
 
 
-@app.websocket("/host_socket")
-async def init_host_socket(websocket: WebSocket):
+@app.websocket("/host_socket/{game_id}")
+async def init_host_socket(websocket: WebSocket, game_id: str):
     await websocket.accept()
-    global host_socket
-    host_socket = websocket
+    await register_socket_route(host_channel(game_id), websocket)
     try:
         while True:
-            await socket_handler.handle_operation(host_socket)
+            await socket_handler.handle_operation(websocket)
     except WebSocketDisconnect:
         logger.error("Host disconnected")
 
 
-@app.websocket("/gameboard_socket")
-async def init_gameboard_socket(websocket: WebSocket):
+@app.websocket("/gameboard_socket/{game_id}")
+async def init_gameboard_socket(websocket: WebSocket, game_id: str):
     await websocket.accept()
-    global game_board_socket
-    game_board_socket = websocket
-    while True:
-        await socket_handler.handle_operation(game_board_socket)
+    await register_socket_route(gameboard_channel(game_id), websocket)
+    try:
+        while True:
+            await socket_handler.handle_operation(websocket)
+    except WebSocketDisconnect:
+        logger.error("Gameboard disconnected")
 
 
 @socket_handler.error(InvalidOperation)
@@ -233,30 +227,28 @@ async def handle_player_init(game_id: str, inbound_message: PlayerInitMessage, p
     new_player = Player(id=player_id, name=inbound_message.player_name, score=0)
     session.save_player(game_id, new_player)
     logger.info(f"Player initialized: ({new_player.name}){player_id}")
-
     outbound_message = PlayerJoinedMessage(player_id=player_id, player_name=inbound_message.player_name, player_score=0)
-    await socket_handler.send_message("PLAYER_JOINED", outbound_message, host_socket)
-    await socket_handler.send_message("PLAYER_JOINED", outbound_message, game_board_socket)
+    await publish_message(game_id, "PLAYER_JOINED", outbound_message, [host_channel(game_id), gameboard_channel(game_id)])
 
 
 @socket_handler.operation("START_GAME", StartGameMessage)
 async def handle_start_game(game_id: str, _: StartGameMessage):
     all_players_in_message = AllPlayersIn()
-    await socket_handler.send_message("ALL_PLAYERS_IN", all_players_in_message, game_board_socket)
+    await publish_message(game_id, "ALL_PLAYERS_IN", all_players_in_message, gameboard_channel(game_id))
     players = session.get_all_players(game_id)
     random_player = list(players)[random.randint(0, len(players)) - 1]
-    await _next_turn(random_player)
+    await _next_turn(random_player, game_id)
 
 
 @socket_handler.operation("SELECT_CATEGORY", SelectCategoryMessage)
 async def handle_category_selected(game_id: str, select_category_message: SelectCategoryMessage, player_id: str):
     category_selected_message = CategorySelectedMessage(category_key=select_category_message.category_key)
-    await socket_handler.send_message("CATEGORY_SELECTED", category_selected_message, [host_socket, game_board_socket])
+    await publish_message(game_id, "CATEGORY_SELECTED", category_selected_message, [host_channel(game_id), gameboard_channel(game_id)])
 
 
 @socket_handler.operation("DESELECT_CATEGORY", DeselectCategoryMessage)
 async def handle_deselect_category(game_id: str, deselect_category_message: DeselectCategoryMessage, player_id: str):
-    await socket_handler.send_message("CATEGORY_DESELECTED", deselect_category_message, [host_socket, game_board_socket])
+    await publish_message(game_id, "CATEGORY_DESELECTED", deselect_category_message, [host_channel(game_id), gameboard_channel(game_id)])
 
 
 @socket_handler.operation("SELECT_CLUE", SelectClueMessage)
@@ -268,22 +260,26 @@ async def handle_clue_selected(game_id: str, select_clue_message: SelectClueMess
         raise KeyError(f"Category does not exist: {select_clue_message.category_key}")
     clue_text = category.tiles[select_clue_message.amount].clue
     clue_selected_message = ClueSelectedMessage(clue_text=clue_text, **select_clue_message.dict())
-    await socket_handler.send_message("CLUE_SELECTED", clue_selected_message, [host_socket, game_board_socket, *player_sockets.values()])
+
+    player_ids = [p.id for p in session.get_all_players(game_id)]
+    await publish_message(
+        game_id,
+        "CLUE_SELECTED",
+        clue_selected_message,
+        [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+    )
 
 
 @socket_handler.operation("CLUE_REVEALED", ClueRevealedMessage)
 async def handle_clue_revealed(game_id: str, clue_revealed_message: ClueRevealedMessage):
+    print("Inside CLUE_REVEALED handler")
     game_board = session.get_game_board(game_id)
     tile = game_board.get_tile(clue_revealed_message.category_key, clue_revealed_message.amount)
-    await socket_handler.send_message(
-        "CLUE_REVEALED",
-        ClueInfo(
-            clue=tile.clue,
-            correct_response=tile.correct_response,
-            clue_id=tile.id
-        ),
-        [host_socket, *player_sockets.values()]
-    )
+
+    clue_info_message = ClueInfo(clue=tile.clue, correct_response=tile.correct_response, clue_id=tile.id)
+    player_ids = [p.id for p in session.get_all_players(game_id)]
+    print("Sending CLUE_REVEALED message to host and players: ", player_ids)
+    await publish_message(game_id, "CLUE_REVEALED", clue_info_message, [host_channel(game_id), *player_channel(game_id, player_ids)])
 
 
 @socket_handler.operation("PLAYER_BUZZ", PlayerBuzzMessage)
@@ -291,11 +287,13 @@ async def handle_player_buzz(game_id: str, buzz_message: PlayerBuzzMessage, play
     clue_id = buzz_message.clue_id
     if session.check_buzz_lock(game_id, clue_id):
         session.add_player_buzz(game_id, clue_id, player_id)
-        await socket_handler.send_message(
+        player_buzz_message = PlayerBuzzMessage(player_id=buzz_message.player_id, clue_id=clue_id)
+        player_ids = [p.id for p in session.get_all_players(game_id)]
+        await publish_message(
+            game_id,
             "PLAYER_BUZZED",
-            PlayerBuzzMessage(player_id=buzz_message.player_id, clue_id=clue_id),
-            [host_socket, game_board_socket, *player_sockets.values()]
-        )
+            player_buzz_message,
+            [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)])
     else:
         logger.info(f"Player {buzz_message.player_id} buzzed too late.")
 
@@ -315,15 +313,31 @@ async def handle_response_correct(game_id: str, response_correct_message: Respon
     clue_answered_message = ClueAnswered(
         category_key=response_correct_message.category_key, amount=response_correct_message.amount, answered_correctly=True, player_id=player.id
     )
-    await socket_handler.send_message("CLUE_ANSWERED", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
-    await socket_handler.send_message("TURN_OVER", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
-    await socket_handler.send_message("PLAYER_STATE_CHANGED", players, [host_socket, game_board_socket, *player_sockets.values()])
+    player_ids = [p.id for p in players]
+    await publish_message(
+        game_id,
+        "CLUE_ANSWERED",
+        clue_answered_message,
+        [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+    )
+    await publish_message(
+        game_id,
+        "TURN_OVER",
+        clue_answered_message,
+        [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+    )
+    await publish_message(
+        game_id,
+        "PLAYER_STATE_CHANGED",
+        players,
+        [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+    )
 
     remaining_tiles = game_board.get_remaining_tiles()
     if len(remaining_tiles) == 0:
-        await _next_round(players, game_board)
+        await _next_round(players, game_board, game_id)
     session.save_game_board(game_id, game_board)
-    await _next_turn(player)
+    await _next_turn(player, game_id)
 
 
 @socket_handler.operation("RESPONSE_INCORRECT", ResponseIncorrectMessage)
@@ -331,9 +345,6 @@ async def handle_response_incorrect(game_id: str, response_incorrect_message: Re
     players = session.get_all_players(game_id)
     player = next((p for p in players if p.id == response_incorrect_message.player_id))
     player.score -= int(response_incorrect_message.amount)
-    global accept_player_buzz
-    accept_player_buzz = True
-
     session.save_player(game_id, player)
 
     game_board = session.get_game_board(game_id)
@@ -344,16 +355,33 @@ async def handle_response_incorrect(game_id: str, response_incorrect_message: Re
     clue_answered_message = ClueAnswered(
         category_key=response_incorrect_message.category_key, amount=response_incorrect_message.amount, answered_correctly=False, player_id=player.id
     )
-    await socket_handler.send_message("CLUE_ANSWERED", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
-    await socket_handler.send_message("PLAYER_STATE_CHANGED", players, [host_socket, game_board_socket, *player_sockets.values()])
+    player_ids = [p.id for p in players]
+    await publish_message(
+        game_id,
+        "CLUE_ANSWERED",
+        clue_answered_message,
+        [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+    )
+    await publish_message(
+        game_id,
+        "PLAYER_STATE_CHANGED",
+        players,
+        [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+    )
 
     session.reset_buzz_lock(game_id, tile.id)
 
     players_buzzed = session.get_players_buzzed(game_id, tile.id)
     if len(players_buzzed) == len(players):
-        await socket_handler.send_message("TURN_OVER", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
+        await publish_message(
+            game_id,
+            "TURN_OVER",
+            clue_answered_message,
+            [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+        )
+
         next_player = get_next_player_when_clue_not_answered_correctly(players)
-        await _next_turn(next_player)
+        await _next_turn(next_player, game_id)
 
 
 @socket_handler.operation("CLUE_EXPIRED", ClueExpiredMessage)
@@ -364,16 +392,27 @@ async def handle_clue_expired(game_id: str, clue_expired_message: ClueExpiredMes
     tile.answered = True
 
     clue_answered_message = ClueAnswered(category_key=clue_expired_message.category_key, amount=clue_expired_message.amount, answered_correctly=False)
-    await socket_handler.send_message("CLUE_ANSWERED", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
-    await socket_handler.send_message("TURN_OVER", clue_answered_message, [host_socket, game_board_socket, *player_sockets.values()])
+    player_ids = [p.id for p in players]
+    await publish_message(
+        game_id,
+        "CLUE_ANSWERED",
+        clue_answered_message,
+        [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+    )
+    await publish_message(
+        game_id,
+        "TURN_OVER",
+        clue_answered_message,
+        [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+    )
 
     remaining_tiles = game_board.get_remaining_tiles()
     if len(remaining_tiles) == 0:
-        await _next_round(players, game_board)
+        await _next_round(players, game_board, game_id)
     session.save_game_board(game_id, game_board)
 
     next_player = get_next_player_when_clue_not_answered_correctly(players)
-    await _next_turn(next_player)
+    await _next_turn(next_player, game_id)
 
 
 def get_next_player_when_clue_not_answered_correctly(players: List[Player]) -> Player:
@@ -381,22 +420,30 @@ def get_next_player_when_clue_not_answered_correctly(players: List[Player]) -> P
     return sorted_by_amount[0]
 
 
-async def _next_turn(next_player: Player):
+async def _next_turn(next_player: Player, game_id: str):
     waiting_for_player_message = WaitingForPlayerMessage(player_name=next_player.name)
-    await socket_handler.send_message("WAITING_FOR_PLAYER_CHOICE", waiting_for_player_message, [host_socket, game_board_socket])
-    for player_id, socket in player_sockets.items():
-        if player_id == next_player.id:
-            await socket_handler.send_message("PLAYER_TURN_START", PlayerTurnStartMessage(), socket)
+    await publish_message(game_id, "WAITING_FOR_PLAYER_CHOICE", waiting_for_player_message, [host_channel(game_id), gameboard_channel(game_id)])
+
+    for player in session.get_all_players(game_id):
+        if player.id == next_player.id:
+            await publish_message(game_id, "PLAYER_TURN_START", PlayerTurnStartMessage(), player_channel(game_id, player.id))
         else:
-            await socket_handler.send_message("WAITING_FOR_PLAYER_CHOICE", waiting_for_player_message, socket)
+            await publish_message(game_id, "WAITING_FOR_PLAYER_CHOICE", waiting_for_player_message, player_channel(game_id, player.id))
 
 
-async def _next_round(players: List[Player], game_board: GameBoard):
+async def _next_round(players: List[Player], game_board: GameBoard, game_id: str):
     game_board.current_round += 1
 
     if game_board.current_round >= len(game_board.rounds):
         logger.debug("Game over")
-        await socket_handler.send_message("GAME_OVER", GameOverMessage(players=players), [host_socket, game_board_socket, *player_sockets.values()])
+        player_ids = [p.id for p in players]
+        await publish_message(
+            game_id,
+            "GAME_OVER",
+            GameOverMessage(players=players),
+            [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+        )
+
     else:
         logger.debug(f"New round: {game_board.current_round}")
-        await socket_handler.send_message("NEW_ROUND", NewRoundMessage(), game_board_socket)
+        await publish_message(game_id, "NEW_ROUND", NewRoundMessage(), gameboard_channel(game_id))

@@ -31,7 +31,7 @@
                     service.newPlayer(providedGameId).then((response) => {
                         gameId = providedGameId
                         playerId = response.playerId
-                        initSocket(playerId)
+                        initSocket(gameId, playerId)
                         hideScreens()
                         d.querySelector("#game-id-value").innerText = gameId
                         d.querySelector("#enter-name").style.display = ""
@@ -55,14 +55,14 @@
         })
 
 
-        function initSocket(playerId) {
+        function initSocket(gameId, playerId) {
             let location = window.location
             let ws_url = "ws://" + location.hostname
             if (location.port !== "") {
                 ws_url += ":" + location.port
             }
-            ws_url += "/player_socket/" + playerId
-            console.log("Player ID is", playerId, ". Opening websocket")
+            ws_url += "/player_socket/" + gameId + "/" + playerId
+            console.log("Player ID is", playerId, ". Opening websocket for game", gameId)
 
             socketMessageRouter = new SocketMessageRouter(ws_url)
             socketMessageRouter.addRoute("WAITING_FOR_PLAYER_CHOICE", handleWaitingForPlayer)

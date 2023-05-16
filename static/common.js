@@ -27,18 +27,20 @@ class SocketMessageRouter {
     }
 
     onMessage(event) {
-        console.debug("Received message:", event)
-        const message = JSON.parse(event.data)
-        if ("error" in message) {
-            console.error(message.error)
-        } else {
-            let operation = message.operation
-            if (this.handlers.has(operation)) {
-                this.handlers.get(operation)(message.payload)
+        event.data.text().then((rawMessage) => {
+            console.debug("Received message:", rawMessage)
+            const message = JSON.parse(rawMessage)
+            if ("error" in message) {
+                console.error(message.error)
             } else {
-                console.warn("Encountered unregistered route:", event)
+                let operation = message.operation
+                if (this.handlers.has(operation)) {
+                    this.handlers.get(operation)(message.payload)
+                } else {
+                    console.warn("Encountered unregistered route:", message)
+                }
             }
-        }
+        })
     }
 
     sendMessage(operation, gameId, obj) {

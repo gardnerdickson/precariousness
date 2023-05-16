@@ -1,15 +1,20 @@
+import asyncio
 import json
 import logging
+from typing import Type, List, Dict
 
-from typing import Type, Union, List
-
+import redis.asyncio as redis
 from starlette.websockets import WebSocket
 
+import server.config as config
 from server.exceptions import InvalidOperation
 from server.models import PrecariousnessBaseModel, SocketMessage
 
-
 logger = logging.getLogger(__name__)
+
+
+redis_client = redis.StrictRedis.from_url(f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}")
+redis_pubsub = redis_client.pubsub()
 
 
 class SocketHandler:
@@ -58,14 +63,53 @@ class SocketHandler:
         logger.warning(f"No handler registered for exception: {type(exc)}")
         raise exc
 
-    @staticmethod
-    async def send_message(operation: str, message: Union[PrecariousnessBaseModel, List[PrecariousnessBaseModel]], sockets: Union[WebSocket, List[WebSocket]]):
-        if isinstance(message, list):
-            message = [m.dict(by_alias=True) for m in message]
-            data = SocketMessage(operation=operation, payload=message).dict(by_alias=True)
-        else:
-            data = SocketMessage(operation=operation, payload=message.dict(by_alias=True)).dict(by_alias=True)
-        if isinstance(sockets, WebSocket):
-            sockets = [sockets]
-        for socket in sockets:
-            await socket.send_json(data)
+
+def player_channel(game_id: str, player_ids: List[str] | str) -> List[str] | str:
+    if not isinstance(player_ids, list):
+        player_ids = [player_ids]
+
+    channels = [f"{game_id}:channel:player:{p_id}" for p_id in player_ids]
+    return channels[0] if len(channels) == 1 else channels
+
+
+def host_channel(game_id: str) -> str:
+    return f"{game_id}:channel:host"
+
+
+def gameboard_channel(game_id: str) -> str:
+    return f"{game_id}:channel:gameboard"
+
+
+sockets: Dict[str, WebSocket] = {}
+routing_task = None
+
+
+async def _route_messages():
+    while True:
+        channel_data = await redis_pubsub.get_message(ignore_subscribe_messages=True)
+        if channel_data is not None:
+            channel = channel_data["channel"].decode()
+            await sockets[channel].send_text(channel_data["data"])
+
+
+async def register_socket_route(channel: str, websocket: WebSocket):
+    await redis_pubsub.subscribe(channel)
+    sockets[channel] = websocket
+    logger.info(f"Registered websocket for channel \"{channel}\"")
+
+    global routing_task
+    if not routing_task:
+        routing_task = asyncio.create_task(_route_messages())
+
+
+async def publish_message(game_id: str, operation: str, message: PrecariousnessBaseModel | List[PrecariousnessBaseModel], channels: str | List[str]):
+    if isinstance(message, list):
+        message = [m.dict(by_alias=True) for m in message]
+        data = SocketMessage(operation=operation, payload=message, game_id=game_id).dict(by_alias=True)
+    else:
+        data = SocketMessage(operation=operation, payload=message.dict(by_alias=True), game_id=game_id).dict(by_alias=True)
+    if not isinstance(channels, list):
+        channels = [channels]
+
+    for channel in channels:
+        await redis_client.publish(channel, json.dumps(data))
