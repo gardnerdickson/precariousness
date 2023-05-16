@@ -34,6 +34,8 @@ Intended to be displayed on a monitor or a TV for the host and players to see. N
 
 ## Running Locally
 
+The game server relies on Redis to save game state and route websocket messages and expects two environment variables to be present in order to connect to it: `REDIS_HOST` and `REDIS_PORT`.
+
 The data for a game is provided to the server via a JSON file that adheres to the [JSON Schema](https://json-schema.org/) located at [server/game_schema.json](server/game_schema.json).
 
 A (fairly) minimal example of a game file:
@@ -77,7 +79,7 @@ The game server expects to receive a path to a game file via an environment vari
 To run the server:
 ```shell
 cd path/to/repository_root
-GAME_FILE=path/to/my_game_file.json uvicorn server.main:app --host 0.0.0.0
+GAME_FILE=path/to/my_game_file.json REDIS_HOST=localhost REDIS_PORT=6379 uvicorn server.main:app --host 0.0.0.0
 ```
 
 With the server now running, clients can connect to the appropriate endpoints using a web browser.
