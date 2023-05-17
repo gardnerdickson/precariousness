@@ -76,6 +76,10 @@ def save_player(game_id: str, player: Player) -> None:
     _session_db.set(_player_key(game_id, player.id), player.json(), ex=_SESSION_EXPIRY)
 
 
+def remove_player(game_id: str, player_id: str) -> None:
+    _session_db.delete(_player_key(game_id, player_id))
+
+
 def add_player_buzz(game_id: str, clue_id: str, player_id: str) -> None:
     _session_db.sadd(_players_buzzed_key(game_id, clue_id), player_id)
     _session_db.expire(_players_buzzed_key(game_id, clue_id), time=_SESSION_EXPIRY)

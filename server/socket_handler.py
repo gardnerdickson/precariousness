@@ -1,10 +1,11 @@
 import asyncio
 import json
 import logging
-from typing import Type
+from typing import Type, Callable, Awaitable
 
 import redis.asyncio as redis
-from starlette.websockets import WebSocket
+from fastapi import WebSocket
+from starlette.websockets import WebSocketState
 
 import server.config as config
 from server.exceptions import InvalidOperation
@@ -19,8 +20,8 @@ _redis_pubsub = _redis_client.pubsub()
 
 class SocketHandler:
     def __init__(self):
-        self.operation_handlers = {}
-        self.error_handlers = {}
+        self.operation_handlers: dict[str, tuple[Callable, Type[PrecariousnessBaseModel]]] = {}
+        self.error_handlers: dict[Type, Callable[[WebSocket, Exception], Awaitable[str | dict]]] = {}
 
     def operation(self, operation_name: str, model_type: Type[PrecariousnessBaseModel]):
         if operation_name in self.operation_handlers:
@@ -41,24 +42,27 @@ class SocketHandler:
         return decorator
 
     async def handle_operation(self, websocket: WebSocket, **kwargs):
-        try:
-            data = await websocket.receive_json()
-            logger.debug(f"Processing message: {json.dumps(data)}")
-            message = SocketMessage.parse_obj(data)
-            if message.operation not in self.operation_handlers:
-                raise InvalidOperation(message.operation)
-            logger.info(f"Routing operation: {message.operation}")
-            func, model_type = self.operation_handlers[message.operation]
-            payload = model_type.parse_obj(message.payload)
-            return await func(message.game_id, payload, **kwargs)
-        except Exception as e:
-            await self.handle_error(websocket, e)
+        while websocket.application_state == WebSocketState.CONNECTED:
+            try:
+                data = await websocket.receive_json()
+                logger.debug(f"Processing message: {json.dumps(data)}")
+                message = SocketMessage.parse_obj(data)
+                if message.operation not in self.operation_handlers:
+                    raise InvalidOperation(message.operation)
+                logger.info(f"Routing operation: {message.operation}")
+                func, model_type = self.operation_handlers[message.operation]
+                payload = model_type.parse_obj(message.payload)
+                await func(message.game_id, payload, **kwargs)
+            except Exception as e:
+                await self.handle_error(websocket, e)
 
     async def handle_error(self, websocket: WebSocket, exc: Exception):
         bases = type(exc).mro()
         for base in bases:
             if base in self.error_handlers:
-                await self.error_handlers[base](websocket, exc)
+                error_message = await self.error_handlers[base](websocket, exc)
+                if error_message and websocket.application_state == WebSocketState.CONNECTED:
+                    await websocket.send_json({"error": error_message})
                 return
         logger.warning(f"No handler registered for exception: {type(exc)}")
         raise exc
@@ -100,6 +104,11 @@ async def register_socket_route(channel: str, websocket: WebSocket):
     global _routing_task
     if not _routing_task:
         _routing_task = asyncio.create_task(_route_messages())
+
+
+async def unregister_socket_route(channel: str):
+    await _redis_pubsub.unsubscribe(channel)
+    del _sockets[channel]
 
 
 async def publish_message(game_id: str, operation: str, message: PrecariousnessBaseModel | list[PrecariousnessBaseModel], channels: str | list[str]):

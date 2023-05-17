@@ -110,6 +110,7 @@ class ClueSelectedMessage(Clue):
 class ClueAnswered(Clue):
     answered_correctly: bool = Field(alias="answeredCorrectly")
     player_id: Optional[str] = Field(alias="playerId")
+    players_buzzed: Optional[list[str]] = Field(alias="playersBuzzed")
 
 
 class ClueInfo(PrecariousnessBaseModel):

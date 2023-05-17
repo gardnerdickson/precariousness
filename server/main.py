@@ -14,7 +14,6 @@ from pydantic import ValidationError
 import server.config as config
 import server.session as session
 from server.exceptions import InvalidPlayerId, InvalidOperation
-from server.socket import SocketHandler, register_socket_route, player_channel, host_channel, gameboard_channel, publish_message
 from server.log import configure_logging
 from server.models.game_state import GameBoard, Player
 from server.models.message import (
@@ -41,6 +40,8 @@ from server.models.message import (
     GameId,
     ClueWithGameId,
 )
+from server.socket_handler import SocketHandler, register_socket_route, player_channel, host_channel, gameboard_channel, publish_message, \
+    unregister_socket_route
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -164,61 +165,67 @@ async def mark_answer_used(tile: ClueWithGameId):
 async def init_player_socket(websocket: WebSocket, game_id, player_id: str):
     await websocket.accept()
     await register_socket_route(player_channel(game_id, player_id), websocket)
-    try:
-        while True:
-            await socket_handler.handle_operation(websocket, player_id=player_id)
-    except WebSocketDisconnect:
-        logger.error(f"Player {player_id} disconnected")
+    await socket_handler.handle_operation(websocket, player_id=player_id)
 
 
 @app.websocket("/host_socket/{game_id}")
 async def init_host_socket(websocket: WebSocket, game_id: str):
     await websocket.accept()
     await register_socket_route(host_channel(game_id), websocket)
-    try:
-        while True:
-            await socket_handler.handle_operation(websocket)
-    except WebSocketDisconnect:
-        logger.error("Host disconnected")
+    await socket_handler.handle_operation(websocket)
 
 
 @app.websocket("/gameboard_socket/{game_id}")
 async def init_gameboard_socket(websocket: WebSocket, game_id: str):
     await websocket.accept()
     await register_socket_route(gameboard_channel(game_id), websocket)
-    try:
-        while True:
-            await socket_handler.handle_operation(websocket)
-    except WebSocketDisconnect:
-        logger.error("Gameboard disconnected")
+    await socket_handler.handle_operation(websocket)
 
 
 @socket_handler.error(InvalidOperation)
 async def handle_invalid_operation(websocket: WebSocket, exc: InvalidOperation):
     message = f"Invalid operation: {exc.operation_name}"
     logger.error(message, exc_info=sys.exc_info())
-    await websocket.send_json({"error": message})
+    return message
 
 
 @socket_handler.error(ValidationError)
 async def handle_validation_error(websocket: WebSocket, exc: ValidationError):
     message = "Invalid message"
     logger.error(message, exc_info=sys.exc_info())
-    await websocket.send_json({"error": message})
+    return message
 
 
 @socket_handler.error(JSONDecodeError)
 async def handle_json_decode_error(websocket: WebSocket, exc: JSONDecodeError):
     message = "Invalid JSON"
     logger.error(message, exc_info=sys.exc_info())
-    await websocket.send_json({"error": message})
+    return message
+
+
+@socket_handler.error(WebSocketDisconnect)
+async def handle_websocket_disconnect(websocket: WebSocket, exc: WebSocketDisconnect):
+    game_id = websocket.path_params["game_id"]
+    if "player_id" in websocket.path_params:
+        player_id = websocket.path_params["player_id"]
+        session.remove_player(game_id, player_id)
+        await unregister_socket_route(player_channel(game_id, player_id))
+        logger.warning(f"Player socket \"{player_id}\" disconnected")
+    elif websocket.url.path.startswith("/host_socket"):
+        await unregister_socket_route(host_channel(game_id))
+        logger.error("Host socket disconnected")
+    else:
+        await unregister_socket_route(gameboard_channel(game_id))
+        logger.error("Gameboard socket disconnected")
+
+    return None
 
 
 @socket_handler.error(Exception)
 async def handle_exception(websocket: WebSocket, _: Exception):
     message = "Server error"
     logger.error(message, exc_info=sys.exc_info())
-    await websocket.send_json({"error": message})
+    return message
 
 
 @socket_handler.operation("PLAYER_INIT", PlayerInitMessage)
@@ -351,8 +358,13 @@ async def handle_response_incorrect(game_id: str, response_incorrect_message: Re
     tile.answered = True
     session.save_game_board(game_id, game_board)
 
+    players_buzzed = session.get_players_buzzed(game_id, tile.id)
     clue_answered_message = ClueAnswered(
-        category_key=response_incorrect_message.category_key, amount=response_incorrect_message.amount, answered_correctly=False, player_id=player.id
+        category_key=response_incorrect_message.category_key,
+        amount=response_incorrect_message.amount,
+        answered_correctly=False,
+        player_id=player.id,
+        players_buzzed=list(players_buzzed)
     )
     player_ids = [p.id for p in players]
     await publish_message(
@@ -369,8 +381,6 @@ async def handle_response_incorrect(game_id: str, response_incorrect_message: Re
     )
 
     session.reset_buzz_lock(game_id, tile.id)
-
-    players_buzzed = session.get_players_buzzed(game_id, tile.id)
     if len(players_buzzed) == len(players):
         await publish_message(
             game_id,

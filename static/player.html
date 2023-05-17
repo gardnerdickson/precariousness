@@ -150,7 +150,7 @@
 
 
         function handleClueAnswered(answerInfo) {
-            if (!answerInfo.answeredCorrectly && answerInfo.playerId !== playerId) {
+            if (!answerInfo.answeredCorrectly && !answerInfo.playersBuzzed.includes(playerId)) {
                 d.querySelector("#buzzer-wrapper").style.display = ""
             }
         }
