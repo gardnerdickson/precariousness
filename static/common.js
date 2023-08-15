@@ -63,8 +63,8 @@ const service = {
         })
     },
 
-    newGame: function() {
-        return fetch("/init_game", {method: "POST"})
+    newGame: function(gameboardData) {
+        return fetch("/init_game", {method: "POST", headers: this.headers, body: JSON.stringify(gameboardData)})
             .then((response) => {
                 if (!response.ok) {
                     this._logAndThrow(response, "Failed to initialize new game")

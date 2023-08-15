@@ -17,12 +17,25 @@
 
         d.addEventListener("DOMContentLoaded", () => {
             hideScreens()
-            getGameCode()
+            d.querySelector("#load-game-file").style.display = ""
+
+            const gameFileInput = d.querySelector("#game-file-input")
+            gameFileInput.addEventListener("change", (_) => {
+                const gameFileReader = new FileReader()
+                gameFileReader.onload = (e) => {
+                    const fileContents = e.target.result
+                    const gameboardData = JSON.parse(fileContents)
+                    initializeGame(gameboardData)
+                }
+                gameFileReader.readAsText(gameFileInput.files[0])
+            })
+
         })
 
 
-        function getGameCode() {
-            service.newGame().then((response) => {
+        function initializeGame(gameboardData) {
+            service.newGame(gameboardData).then((response) => {
+                hideScreens()
                 gameId = response.gameId
                 let gameIdElement = d.getElementById("game-id")
                 gameIdElement.innerHTML = "<b>" + gameId + "</b>"
@@ -149,6 +162,11 @@
 </head>
 
 <body>
+<div id="load-game-file" class="screen hideable">
+    <label for="game-file-input">Select game file:</label>
+    <br/>
+    <input type="file" id="game-file-input" accept="application/json" />
+</div>
 <div id="game-id" class="screen hideable"></div>
 <div id="waiting-for-player" class="screen hideable"></div>
 <div id="gameboard" class="screen hideable">

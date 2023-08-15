@@ -1,4 +1,3 @@
-import json
 import logging
 import random
 import sys
@@ -8,10 +7,8 @@ from json import JSONDecodeError
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from jsonschema import validate
 from pydantic import ValidationError
 
-import server.config as config
 import server.session as session
 from server.exceptions import InvalidPlayerId, InvalidOperation
 from server.log import configure_logging
@@ -40,8 +37,15 @@ from server.models.message import (
     GameId,
     ClueWithGameId,
 )
-from server.socket_handler import SocketHandler, register_socket_route, player_channel, host_channel, gameboard_channel, publish_message, \
-    unregister_socket_route
+from server.socket_handler import (
+    SocketHandler,
+    register_socket_route,
+    player_channel,
+    host_channel,
+    gameboard_channel,
+    publish_message,
+    unregister_socket_route,
+)
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -100,14 +104,9 @@ async def gameboard_init():
 
 
 @app.post("/init_game")
-async def initialize_game():
-    with open(config.GAME_FILE) as data_fh, open("server/game_schema.json") as schema_fh:
-        game_data = json.load(data_fh)
-        game_schema = json.load(schema_fh)
-        validate(game_data, game_schema)
-        game_board = GameBoard.parse_obj(game_data)
-        game_id = session.generate_game_id()
-        session.save_game_board(game_id, game_board)
+async def initialize_game(game_board: GameBoard):
+    game_id = session.generate_game_id()
+    session.save_game_board(game_id, game_board)
 
     response = JSONResponse(content={"gameId": game_id})
     response.set_cookie("game-id", game_id)
@@ -269,10 +268,7 @@ async def handle_clue_selected(game_id: str, select_clue_message: SelectClueMess
 
     player_ids = [p.id for p in session.get_all_players(game_id)]
     await publish_message(
-        game_id,
-        "CLUE_SELECTED",
-        clue_selected_message,
-        [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+        game_id, "CLUE_SELECTED", clue_selected_message, [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
     )
 
 
@@ -296,10 +292,8 @@ async def handle_player_buzz(game_id: str, buzz_message: PlayerBuzzMessage, play
         player_buzz_message = PlayerBuzzMessage(player_id=buzz_message.player_id, clue_id=clue_id)
         player_ids = [p.id for p in session.get_all_players(game_id)]
         await publish_message(
-            game_id,
-            "PLAYER_BUZZED",
-            player_buzz_message,
-            [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)])
+            game_id, "PLAYER_BUZZED", player_buzz_message, [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+        )
     else:
         logger.info(f"Player {buzz_message.player_id} buzzed too late.")
 
@@ -321,23 +315,12 @@ async def handle_response_correct(game_id: str, response_correct_message: Respon
     )
     player_ids = [p.id for p in players]
     await publish_message(
-        game_id,
-        "CLUE_ANSWERED",
-        clue_answered_message,
-        [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+        game_id, "CLUE_ANSWERED", clue_answered_message, [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
     )
     await publish_message(
-        game_id,
-        "TURN_OVER",
-        clue_answered_message,
-        [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+        game_id, "TURN_OVER", clue_answered_message, [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
     )
-    await publish_message(
-        game_id,
-        "PLAYER_STATE_CHANGED",
-        players,
-        [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
-    )
+    await publish_message(game_id, "PLAYER_STATE_CHANGED", players, [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)])
 
     remaining_tiles = game_board.get_remaining_tiles()
     if len(remaining_tiles) == 0:
@@ -364,29 +347,18 @@ async def handle_response_incorrect(game_id: str, response_incorrect_message: Re
         amount=response_incorrect_message.amount,
         answered_correctly=False,
         player_id=player.id,
-        players_buzzed=list(players_buzzed)
+        players_buzzed=list(players_buzzed),
     )
     player_ids = [p.id for p in players]
     await publish_message(
-        game_id,
-        "CLUE_ANSWERED",
-        clue_answered_message,
-        [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+        game_id, "CLUE_ANSWERED", clue_answered_message, [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
     )
-    await publish_message(
-        game_id,
-        "PLAYER_STATE_CHANGED",
-        players,
-        [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
-    )
+    await publish_message(game_id, "PLAYER_STATE_CHANGED", players, [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)])
 
     session.reset_buzz_lock(game_id, tile.id)
     if len(players_buzzed) == len(players):
         await publish_message(
-            game_id,
-            "TURN_OVER",
-            clue_answered_message,
-            [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+            game_id, "TURN_OVER", clue_answered_message, [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
         )
 
         next_player = get_next_player_when_clue_not_answered_correctly(players)
@@ -403,16 +375,10 @@ async def handle_clue_expired(game_id: str, clue_expired_message: ClueExpiredMes
     clue_answered_message = ClueAnswered(category_key=clue_expired_message.category_key, amount=clue_expired_message.amount, answered_correctly=False)
     player_ids = [p.id for p in players]
     await publish_message(
-        game_id,
-        "CLUE_ANSWERED",
-        clue_answered_message,
-        [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+        game_id, "CLUE_ANSWERED", clue_answered_message, [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
     )
     await publish_message(
-        game_id,
-        "TURN_OVER",
-        clue_answered_message,
-        [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+        game_id, "TURN_OVER", clue_answered_message, [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
     )
 
     remaining_tiles = game_board.get_remaining_tiles()
@@ -447,10 +413,7 @@ async def _next_round(players: list[Player], game_board: GameBoard, game_id: str
         logger.debug("Game over")
         player_ids = [p.id for p in players]
         await publish_message(
-            game_id,
-            "GAME_OVER",
-            GameOverMessage(players=players),
-            [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
+            game_id, "GAME_OVER", GameOverMessage(players=players), [host_channel(game_id), gameboard_channel(game_id), *player_channel(game_id, player_ids)]
         )
 
     else:
