@@ -55,7 +55,7 @@ const service = {
     headers: {"Content-Type": "application/json"},
 
     _logAndThrow: function(response, exceptionMessage) {
-        response.json().then((body) => {
+        return response.json().then((body) => {
             if (body.hasOwnProperty("error")) {
                 console.error("Error: ", body.error)
             }
@@ -67,7 +67,7 @@ const service = {
         return fetch("/init_game", {method: "POST", headers: this.headers, body: JSON.stringify(gameboardData)})
             .then((response) => {
                 if (!response.ok) {
-                    this._logAndThrow(response, "Failed to initialize new game")
+                    return this._logAndThrow(response, "Failed to initialize new game")
                 }
                 return response.json()
             })
@@ -77,7 +77,7 @@ const service = {
         return fetch("/new_host", {method: "POST", headers: this.headers, body: JSON.stringify(postBody)})
             .then((response) => {
                 if (!response.ok) {
-                    this._logAndThrow(response, "Failed to register host")
+                    return this._logAndThrow(response, "Failed to register host")
                 }
                 return response.json()
             })
@@ -87,7 +87,7 @@ const service = {
         return fetch("/new_player", {method: "POST", headers: this.headers, body: JSON.stringify(postBody)})
             .then((response) => {
                 if (!response.ok) {
-                    this._logAndThrow(response, "Failed to register player")
+                    return this._logAndThrow(response, "Failed to register player")
                 }
                 return response.json()
             })
@@ -97,7 +97,7 @@ const service = {
         return fetch("/get_game_board_state", {method: "POST", headers: this.headers, body: JSON.stringify(postBody)})
             .then((response) => {
                 if (!response.ok) {
-                    this._logAndThrow(response, "Failed to get game board")
+                    return this._logAndThrow(response, "Failed to get game board")
                 }
                 return response.json()
             })
@@ -107,7 +107,7 @@ const service = {
         return fetch("/get_players_state", {method: "POST", headers: this.headers, body: JSON.stringify(postBody)})
             .then((response) => {
                 if (!response.ok) {
-                    this._logAndThrow(response, "Failed to get players state")
+                    return this._logAndThrow(response, "Failed to get players state")
                 }
                 return response.json()
             })

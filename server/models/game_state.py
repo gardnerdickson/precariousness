@@ -1,6 +1,6 @@
 import re
 
-from pydantic import Field, root_validator
+from pydantic import Field, root_validator, ValidationError
 
 from server.models import PrecariousnessBaseModel
 
@@ -31,11 +31,14 @@ class GameBoard(PrecariousnessBaseModel):
 
     @root_validator(pre=True)
     def pre_process(cls, values: dict) -> dict:
-        for game_round_num, game_round in enumerate(values["rounds"]):
-            for category_num, category in enumerate(game_round):
-                for amount, tile in category["tiles"].items():
-                    tile["id"] = f"{game_round_num}_{category_num}_{amount}"
-        return values
+        try:
+            for game_round_num, game_round in enumerate(values["rounds"]):
+                for category_num, category in enumerate(game_round):
+                    for amount, tile in category["tiles"].items():
+                        tile["id"] = f"{game_round_num}_{category_num}_{amount}"
+            return values
+        except LookupError:
+            raise ValidationError("Malformed GameBoard")
 
     def get_tile(self, category_key: str, amount: str) -> Tile:
         categories = self.rounds[self.current_round]

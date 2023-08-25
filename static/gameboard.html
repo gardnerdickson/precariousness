@@ -30,18 +30,27 @@
                 gameFileReader.readAsText(gameFileInput.files[0])
             })
 
+            d.querySelector("#game-file-browse").addEventListener("click", (e) => {
+                d.querySelector("#game-file-error").style.display = "none"
+                d.querySelector("#game-file-input").click();
+            })
+
         })
 
 
         function initializeGame(gameboardData) {
-            service.newGame(gameboardData).then((response) => {
-                hideScreens()
-                gameId = response.gameId
-                let gameIdElement = d.getElementById("game-id")
-                gameIdElement.innerHTML = "<b>" + gameId + "</b>"
-                gameIdElement.style.display = ""
-                initSocket(gameId)
-            })
+            service.newGame(gameboardData)
+                .then((response) => {
+                    hideScreens()
+                    gameId = response.gameId
+                    let gameIdElement = d.getElementById("game-id")
+                    gameIdElement.innerHTML = "<b>" + gameId + "</b>"
+                    d.getElementById("game-id-screen").style.display = ""
+                    initSocket(gameId)
+                })
+                .catch(() => {
+                    d.querySelector("#game-file-error").style.display = ""
+                })
         }
 
 
@@ -163,11 +172,22 @@
 
 <body>
 <div id="load-game-file" class="screen hideable">
-    <label for="game-file-input">Select game file:</label>
-    <br/>
-    <input type="file" id="game-file-input" accept="application/json" />
+    <div class="text-row">
+        <label for="game-file-input">Select game file:</label>
+    </div>
+    <div class="text-row">
+        <input type="file" id="game-file-input" accept="application/json" style="display: none"/>
+        <button id="game-file-browse" class="player-submit-button">Browse...</button>
+    </div>
+    <div class="text-row" id="game-file-error" style="display: none">
+        <div style="color: orangered">Failed to load game file</div>
+    </div>
 </div>
-<div id="game-id" class="screen hideable"></div>
+<div id="game-id-screen" class="screen hideable">
+    <div class="text-row">
+        <div id="game-id" style="font-size: xx-large"></div>
+    </div>
+</div>
 <div id="waiting-for-player" class="screen hideable"></div>
 <div id="gameboard" class="screen hideable">
     <canvas id="gameboard-canvas"></canvas>
