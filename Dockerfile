@@ -9,6 +9,6 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 COPY ./static /code/static
 COPY ./server /code/server
-COPY ./examples /code/games
 
+EXPOSE 8000
 CMD uvicorn server.main:app --host 0.0.0.0 --port 8000

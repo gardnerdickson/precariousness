@@ -14,7 +14,9 @@ from server.models import PrecariousnessBaseModel, SocketMessage
 logger = logging.getLogger(__name__)
 
 
-_redis_client = redis.StrictRedis.from_url(f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}")
+host, port, password = config.get_redis_config()
+user_part = f":{password}@" if password is not None else ""
+_redis_client = redis.StrictRedis.from_url(f"redis://{user_part}{host}:{port}")
 _redis_pubsub = _redis_client.pubsub()
 
 

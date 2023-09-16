@@ -5,7 +5,8 @@ import redis
 import server.config as config
 from server.models.game_state import GameBoard, Player
 
-_session_db = redis.StrictRedis(config.REDIS_HOST, int(config.REDIS_PORT), charset="utf-8", decode_responses=True)
+host, port, password = config.get_redis_config()
+_session_db = redis.StrictRedis(host=host, port=int(port), password=password, charset="utf-8", decode_responses=True)
 
 
 _GAME_CODE_CHARACTERS = "BCDFGHJKLMNPQRSTVWXZ"

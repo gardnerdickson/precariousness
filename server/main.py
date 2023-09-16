@@ -88,6 +88,11 @@ async def bad_request(_: Request, exc: RequestError):
     return exc.to_json_response()
 
 
+@app.get("/status")
+async def health_check():
+    return JSONResponse(content={"message": "ok"}, status_code=200)
+
+
 @app.get("/player")
 async def player_init():
     return FileResponse("static/player.html")
